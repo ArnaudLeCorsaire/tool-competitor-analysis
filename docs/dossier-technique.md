@@ -1,6 +1,6 @@
 # Competitor Analysis — dossier technique
 
-*Dernière mise à jour : 18/11/2026 — version 1.2*
+*Dernière mise à jour : 18/11/2026 — version 1.3*
 
 ## En bref
 
@@ -30,6 +30,16 @@ HTML, CSS et JavaScript sont dans un seul fichier, sans framework ni compilation
 | `const MAP=/*CARTE-DEBUT*/…/*CARTE-FIN*/` | Fond de carte projeté (193 pays + territoires hors ONU en gris) |
 
 L'import du document se fait dans le navigateur. Le `.docx` est un zip ; l'outil le décompresse avec l'API native `DecompressionStream('deflate-raw')`, lit `word/document.xml` avec `DOMParser`, puis reconnaît les sections et tableaux par leurs titres. Aucune bibliothèque externe n'est utilisée.
+
+**Documents Word acceptés (v1.3)** : `.docx`, `.docm`, `.dotx`, `.dotm`, au format OOXML transitionnel ou strict, y compris un document réenregistré par Word sur un poste de la banque. L'outil trouve la partie principale par `_rels/.rels` et lit le contenu placé dans les conteneurs que Word ajoute : contrôles de contenu (`w:sdt`), XML personnalisé, balises actives, révisions (`kids`, `WRAP`).
+
+Le format réel est reconnu d'après le contenu du fichier, pas son extension (`sniffFormat`). Les formats que l'outil ne lit pas reçoivent un message et la marche à suivre dans Word :
+
+| Fichier | Reconnu par | Message |
+| --- | --- | --- |
+| Word 97-2003 `.doc` | conteneur OLE sans flux `EncryptedPackage` | Enregistrer sous « Document Word (*.docx) » |
+| `.docx` chiffré (mot de passe, étiquette de confidentialité qui chiffre) | conteneur OLE avec flux `EncryptedPackage` | Copie `.docx` sans chiffrement si les règles de la banque le permettent ; les données sont rechiffrées dans l'outil |
+| `.rtf`, `.odt`, page web ou XML | en-tête du fichier | Enregistrer sous « Document Word (*.docx) » |
 
 ## Sécurité
 
@@ -156,7 +166,7 @@ La capacité de chaque banque vient de son profil : une phrase « does not opera
 | Textes FR / EN / NL | `const L=`, fonction `t()` |
 | Concurrents, couleurs, codes | `BANKS_REF`, `MODES`, `MODE_GROUP`, `MODE_TINT` |
 | Chiffrement et stockage | `deriveKey`, `enc`, `dec`, `saveVault`, `kvGet`, `kvSet` |
-| Lecture du document | `unzip`, `readDocx`, `parsePara`, `docToData` |
+| Lecture du document | `sniffFormat`, `unzip`, `readDocx`, `kids`, `parsePara`, `docToData`, `fmtHelp` |
 | Calcul | `buildModel` |
 | Écrans | `viewMap`, `viewCountries`, `openCountry`, `viewBanks`, `viewBank`, `viewTable`, `viewMethod` |
 | Admin | `viewData`, `importDocx`, `viewPub`, `teamFolder`, `publish`, `exportEdition` |

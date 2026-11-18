@@ -276,7 +276,7 @@ b[data-w],span[data-w]:not(.mbadge):not(.ctag):not(.wv),em[data-w]{text-decorati
    Un seul fichier, deux profils choisis à la connexion : Admin et Standard.
    Chaque profil a son mot de passe et son coffre chiffré (bases IndexedDB distinctes).
    =================================================================== */
-const APP_VERSION='1.2';
+const APP_VERSION='1.3';
 /* Profil courant : 'admin' ou 'standard'. Mêmes noms de bases et de préfixes qu'en 1.0 / 1.1 : les données existantes restent lisibles. */
 let ROLE='standard', IS_ADMIN=false, DBNAME='ca-tool-standard', LSP='ca-std:';
 function setRole(r){ROLE=r==='admin'?'admin':'standard';IS_ADMIN=ROLE==='admin';DBNAME=IS_ADMIN?'ca-tool-admin':'ca-tool-standard';LSP=IS_ADMIN?'ca:':'ca-std:';DBP=null;gSet('role',ROLE);}
@@ -488,6 +488,13 @@ nl:{
 
 /* ---------- Textes ajoutés en version 1.1 ---------- */
 Object.assign(L.fr,{
+ fDoc:'ce fichier est au format Word 97-2003 (.doc), que l’outil ne sait pas lire.',
+ fProt:'ce fichier Word est chiffré (mot de passe, ou étiquette de confidentialité qui chiffre le document) : son contenu ne peut être lu que dans Word.',
+ fRtf:'ce fichier est au format RTF, que l’outil ne sait pas lire.', fOdt:'ce fichier est au format OpenDocument (.odt), que l’outil ne sait pas lire.',
+ fXml:'ce fichier est une page web ou un fichier XML, pas un document Word .docx.', fUnk:'ce fichier n’est pas un document Word lisible.',
+ fHow:'Dans Word : Fichier > Enregistrer sous > type « Document Word (*.docx) », puis importez cette copie.',
+ fHowProt:'Si les règles de la banque le permettent, enregistrez dans Word une copie .docx sans mot de passe ni chiffrement (Fichier > Informations > Protéger le document, ou une étiquette de confidentialité sans chiffrement), puis importez-la. Une fois importées, les données sont de nouveau chiffrées dans l’outil.',
+ dImport:'Importer le document Word (.docx)',
  lkRoleStd:'Standard', lkRoleAdm:'Admin', lockOut:'Verrouiller / changer de profil',
  lkRoleStdHelp:'Consultation de l’édition publiée par l’équipe. Chaque profil a son propre mot de passe et ses propres données chiffrées.',
  lkRoleAdmHelp:'Import du document, contrôle et publication pour l’équipe. Mot de passe distinct de celui du profil Standard.',
@@ -522,6 +529,13 @@ Object.assign(L.fr,{
  noTF:'pas de trade finance'
 });
 Object.assign(L.en,{
+ fDoc:'this file is in Word 97-2003 format (.doc), which the tool cannot read.',
+ fProt:'this Word file is encrypted (password, or a sensitivity label that encrypts the document): its content can only be read in Word.',
+ fRtf:'this file is in RTF format, which the tool cannot read.', fOdt:'this file is in OpenDocument format (.odt), which the tool cannot read.',
+ fXml:'this file is a web page or an XML file, not a Word .docx document.', fUnk:'this file is not a readable Word document.',
+ fHow:'In Word: File > Save As > type “Word Document (*.docx)”, then import that copy.',
+ fHowProt:'If the bank’s rules allow it, save a .docx copy in Word without password or encryption (File > Info > Protect Document, or a sensitivity label without encryption), then import it. Once imported, the data is encrypted again inside the tool.',
+ dImport:'Import the Word document (.docx)',
  lkRoleStd:'Standard', lkRoleAdm:'Admin', lockOut:'Lock / switch profile',
  lkRoleStdHelp:'Consult the edition published by the team. Each profile has its own password and its own encrypted data.',
  lkRoleAdmHelp:'Import the document, check it and publish it for the team. Password separate from the Standard profile.',
@@ -556,6 +570,13 @@ Object.assign(L.en,{
  noTF:'no trade finance'
 });
 Object.assign(L.nl,{
+ fDoc:'dit bestand heeft de indeling Word 97-2003 (.doc), die de tool niet kan lezen.',
+ fProt:'dit Word-bestand is versleuteld (wachtwoord, of een vertrouwelijkheidslabel dat het document versleutelt): de inhoud kan alleen in Word worden gelezen.',
+ fRtf:'dit bestand heeft de RTF-indeling, die de tool niet kan lezen.', fOdt:'dit bestand heeft de OpenDocument-indeling (.odt), die de tool niet kan lezen.',
+ fXml:'dit bestand is een webpagina of XML-bestand, geen Word-document .docx.', fUnk:'dit bestand is geen leesbaar Word-document.',
+ fHow:'In Word: Bestand > Opslaan als > type “Word-document (*.docx)”, en importeer die kopie.',
+ fHowProt:'Als de regels van de bank het toelaten, sla in Word een .docx-kopie op zonder wachtwoord of versleuteling (Bestand > Info > Document beveiligen, of een vertrouwelijkheidslabel zonder versleuteling) en importeer die. Na de import worden de gegevens in de tool opnieuw versleuteld.',
+ dImport:'Word-document importeren (.docx)',
  lkRoleStd:'Standaard', lkRoleAdm:'Admin', lockOut:'Vergrendelen / profiel wisselen',
  lkRoleStdHelp:'Raadpleeg de editie die het team heeft gepubliceerd. Elk profiel heeft een eigen wachtwoord en eigen versleutelde gegevens.',
  lkRoleAdmHelp:'Document importeren, controleren en publiceren voor het team. Ander wachtwoord dan het Standaard-profiel.',
@@ -822,21 +843,25 @@ function unzip(buf){
   }
   return {has:n=>!!files[n],async get(name){const f=files[name];if(!f)return null;const l=f.lho;const nl=dv.getUint16(l+26,true),xl=dv.getUint16(l+28,true);const d=u.subarray(l+30+nl+xl,l+30+nl+xl+f.csize);if(f.method===0)return d.slice();if(f.method!==8)throw new Error('zip-method');return inflateRaw(d);}};
 }
-const WNS='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-const ANS='http://schemas.openxmlformats.org/drawingml/2006/main';
-const RNS='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
-function kids(el,name){return [...el.children].filter(c=>c.localName===name);}
+/* Espaces de noms Word : OOXML « transitionnel » (le plus courant) et « strict » (option d'enregistrement de Word) */
+const W_NS=new Set(['http://schemas.openxmlformats.org/wordprocessingml/2006/main','http://purl.oclc.org/ooxml/wordprocessingml/main']);
+const isW=el=>!!el&&W_NS.has(el.namespaceURI);
+function attrL(el,name){if(!el)return null;for(const a of el.attributes)if(a.localName===name)return a.value;return null;}
+/* Conteneurs que Word ajoute autour du contenu : contrôles de contenu, XML personnalisé, balises actives, révisions */
+const WRAP=new Set(['sdt','sdtContent','customXml','smartTag','ins','moveTo','fldSimple']);
+function kids(el,name){const out=[];for(const c of el.children){if(c.localName===name)out.push(c);else if(WRAP.has(c.localName)&&isW(c))out.push(...kids(c,name));}return out;}
 function inTextbox(el){for(let p=el.parentNode;p;p=p.parentNode){if(p.localName==='txbxContent')return true;if(p.localName==='p'||p.localName==='body')break;}return false;}
+function wFirst(el,name){return [...el.getElementsByTagNameNS('*',name)].find(isW);}
 function parsePara(p,rels){
   const segs=[];let buf='',sup='';const imgs=[];let url=null;
   const flushSup=()=>{if(sup){const nums=(sup.match(/\d+/g)||[]).map(Number).filter(n=>n>0&&n<1000);if(nums.length){if(buf){segs.push({t:buf});buf='';}segs.push({r:nums});}else buf+=sup;sup='';}};
-  for(const r of p.getElementsByTagNameNS(WNS,'r')){
-    if(inTextbox(r))continue;
-    const va=r.getElementsByTagNameNS(WNS,'vertAlign')[0];const isSup=va&&(va.getAttributeNS(WNS,'val')||va.getAttribute('w:val'))==='superscript';
+  for(const r of p.getElementsByTagNameNS('*','r')){
+    if(!isW(r)||inTextbox(r))continue;
+    const va=wFirst(r,'vertAlign');const isSup=!!va&&attrL(va,'val')==='superscript';
     let txt='';
-    for(const c of r.children){if(c.localName==='t')txt+=c.textContent;else if(c.localName==='tab')txt+=' ';else if(c.localName==='br'||c.localName==='cr')txt+='\n';}
-    for(const b of r.getElementsByTagNameNS(ANS,'blip')){const id=b.getAttributeNS(RNS,'embed')||b.getAttribute('r:embed');if(id&&rels[id])imgs.push(rels[id].target);}
-    const par=r.parentNode;if(par&&par.localName==='hyperlink'&&!url){const id=par.getAttributeNS(RNS,'id')||par.getAttribute('r:id');if(id&&rels[id])url=rels[id].target;}
+    for(const c of r.children){if(!isW(c))continue;if(c.localName==='t')txt+=c.textContent;else if(c.localName==='tab')txt+=' ';else if(c.localName==='br'||c.localName==='cr')txt+='\n';else if(c.localName==='noBreakHyphen')txt+='-';}
+    for(const bl of r.getElementsByTagNameNS('*','blip')){const id=attrL(bl,'embed');if(id&&rels[id])imgs.push(rels[id].target);}
+    if(!url){for(let par=r.parentNode;par&&par!==p;par=par.parentNode){if(par.localName==='hyperlink'&&isW(par)){const id=attrL(par,'id');if(id&&rels[id])url=rels[id].target;break;}}}
     if(isSup&&/^[\d,\s–-]+$/.test(txt)){sup+=txt;continue;}
     flushSup();buf+=txt;
   }
@@ -849,16 +874,33 @@ function cleanSegs(segs){const out=[];for(const s of segs){if(s.t!=null){const v
 function parseTbl(tb,rels){
   return kids(tb,'tr').map(tr=>kids(tr,'tc').map(tc=>{const ps=kids(tc,'p').map(p=>parsePara(p,rels));const segs=[];ps.forEach((p,i)=>{if(i&&p.segs.length)segs.push({t:' '});segs.push(...p.segs);});const cs=cleanSegs(segs);return {t:ps.map(p=>p.text).filter(Boolean).join(' '),segs:cs,refs:cs.filter(s=>s.r).flatMap(s=>s.r)};}));
 }
+/* Reconnaît le format réel du fichier choisi, quelle que soit son extension */
+function findBytes(u,pat){outer:for(let i=0;i<=u.length-pat.length;i++){if(u[i]!==pat[0])continue;for(let j=1;j<pat.length;j++)if(u[i+j]!==pat[j])continue outer;return true;}return false;}
+function sniffFormat(buf){
+  const u=new Uint8Array(buf);
+  if(u.length>4&&u[0]===0x50&&u[1]===0x4B){try{const z=unzip(buf);if(z.has('mimetype')&&z.has('content.xml'))return 'odt';if(z.has('[Content_Types].xml'))return 'ooxml';}catch(e){}return 'unknown';}
+  if(u.length>8&&u[0]===0xD0&&u[1]===0xCF&&u[2]===0x11&&u[3]===0xE0){const s=te.encode('EncryptedPackage');const p16=new Uint8Array(s.length*2);s.forEach((c,i)=>{p16[i*2]=c;});return findBytes(u,p16)?'protected':'doc';}
+  const head=td.decode(u.subarray(0,300));
+  if(head.startsWith('{\\rtf'))return 'rtf';
+  if(/^\s*(﻿)?\s*<(\?xml|html|!doctype)/i.test(head))return 'xmlhtml';
+  return 'unknown';
+}
 async function readDocx(buf){
   const z=unzip(buf);
-  const xml=await z.get('word/document.xml');if(!xml)throw new Error('document.xml');
-  const relsX=await z.get('word/_rels/document.xml.rels');const rels={};
+  /* Partie principale du document : indiquée par _rels/.rels (word/document.xml le plus souvent) */
+  let main='word/document.xml';
+  const rootRels=await z.get('_rels/.rels');
+  if(rootRels){const rd=new DOMParser().parseFromString(td.decode(rootRels),'application/xml');for(const r of rd.getElementsByTagName('Relationship')){if(/\/officeDocument$/.test(r.getAttribute('Type')||'')){main=(r.getAttribute('Target')||main).replace(/^\//,'');break;}}}
+  const xml=await z.get(main);if(!xml)throw Object.assign(new Error('document.xml'),{fmt:'unknown'});
+  const base=main.includes('/')?main.slice(0,main.lastIndexOf('/')+1):'';
+  const relsX=await z.get(base+'_rels/'+main.slice(base.length)+'.rels');const rels={};
   if(relsX){const rd=new DOMParser().parseFromString(td.decode(relsX),'application/xml');for(const r of rd.getElementsByTagName('Relationship'))rels[r.getAttribute('Id')]={target:r.getAttribute('Target'),ext:r.getAttribute('TargetMode')==='External'};}
   const doc=new DOMParser().parseFromString(td.decode(xml),'application/xml');
-  const body=doc.getElementsByTagNameNS(WNS,'body')[0];if(!body)throw new Error('body');
+  const body=[...doc.getElementsByTagNameNS('*','body')].find(isW);if(!body)throw Object.assign(new Error('body'),{fmt:'unknown'});
   const blocks=[];
-  for(const el of body.children){if(el.localName==='p')blocks.push(parsePara(el,rels));else if(el.localName==='tbl')blocks.push({type:'tbl',rows:parseTbl(el,rels)});}
-  return {blocks,zip:z};
+  const walk=el=>{for(const c of el.children){if(!isW(c))continue;if(c.localName==='p')blocks.push(parsePara(c,rels));else if(c.localName==='tbl')blocks.push({type:'tbl',rows:parseTbl(c,rels)});else if(WRAP.has(c.localName))walk(c);}};
+  walk(body);
+  return {blocks,zip:z,base};
 }
 async function shrinkImage(bytes){
   try{const bmp=await createImageBitmap(new Blob([bytes]));const w=Math.min(1000,bmp.width),h=Math.round(bmp.height*w/bmp.width);
@@ -870,7 +912,7 @@ function parseClaimTotal(s){const m=String(s).match(/(\d+)\D+?(\d+)\D+?(\d+)/);r
 
 /* Transforme le document en données de l'outil + rapport de contrôle */
 async function docToData(buf,fileName,onImg){
-  const {blocks,zip}=await readDocx(buf);
+  const {blocks,zip,base}=await readDocx(buf);
   const rep=[];const add=(lvl,msg)=>rep.push({lvl,msg});
   const H={synth:/^Executive Synthesis/i,proto:/^Research Architecture/i,matrix:/^Comparative Institutional Matrix/i,deep:/^Granular Institutional/i,carto:/^Global Cartography/i,compil:/^Complete Sovereign Compilation/i,gov:/^Project Governance/i,sources:/^Sources\b/i};
   const CONT_RE=/^Continent\s+\d+\s*:\s*(.+?)\s*\((\d+)\s+UN Member States/i;
@@ -935,7 +977,7 @@ async function docToData(buf,fileName,onImg){
 
   /* Visuels */
   let nImg=0;
-  for(const key in out.imgs){const tg=out.imgs[key][0];const path=tg.startsWith('/')?tg.slice(1):('word/'+tg.replace(/^\.\//,''));const bytes=await zip.get(path);if(!bytes)continue;
+  for(const key in out.imgs){const tg=out.imgs[key][0];const path=tg.startsWith('/')?tg.slice(1):(base+tg.replace(/^\.\//,''));const bytes=await zip.get(path);if(!bytes)continue;
     if(onImg)onImg(++nImg);const data=await shrinkImage(bytes);if(!data)continue;
     if(key.startsWith('bank:')){const b=B[key.slice(5)];if(b){b.img=data;}}else out.imgs[key]=data;}
   const extraImgs={synth:typeof out.imgs.synth==='string'?out.imgs.synth:null,carto:typeof out.imgs.carto==='string'?out.imgs.carto:null};
@@ -1396,12 +1438,19 @@ async function importTr(){
   STATE.data.tr=tr;STATE.data.trFile=f.name;await saveVault();buildModel();toast(t('dTrOk',n,keys.length));render();
 }
 async function importDocx(){
-  const f=await pickFile('.docx');if(!f)return;
+  const f=await pickFile('.docx,.docm,.dotx,.dotm,.doc,.rtf,.odt,.xml,.htm,.html');if(!f)return;
   $('#dMsg').textContent=t('dImporting');
-  try{const buf=await f.arrayBuffer();const sha=await sha256hex(buf);
+  try{const buf=await f.arrayBuffer();
+    const fmt=sniffFormat(buf);
+    if(fmt!=='ooxml'){$('#dMsg').textContent='';PENDING=null;$('#dRep').innerHTML=fmtHelp(fmt,f.name);return;}
+    const sha=await sha256hex(buf);
     const res=await docToData(buf,f.name,n=>{$('#dMsg').textContent=t('dImporting')+' ('+n+')';});
     PENDING={...res,file:f.name,sha};$('#dMsg').textContent='';showReport();}
-  catch(e){$('#dMsg').textContent='';PENDING=null;$('#dRep').innerHTML=`<div class="callout err" style="margin-top:12px">${esc(e.fatal?t('ckFatal'):t('err',e.message))}</div>`;}
+  catch(e){$('#dMsg').textContent='';PENDING=null;$('#dRep').innerHTML=e.fmt?fmtHelp(e.fmt,f.name):`<div class="callout err" style="margin-top:12px">${esc(e.fatal?t('ckFatal'):t('err',e.message))}</div>`;}
+}
+function fmtHelp(fmt,name){
+  const k={doc:'fDoc',protected:'fProt',rtf:'fRtf',odt:'fOdt',xmlhtml:'fXml'}[fmt]||'fUnk';
+  return `<div class="callout err" style="margin-top:12px"><b>${esc(name)}</b> — ${esc(t(k))}<br>${esc(t(fmt==='protected'?'fHowProt':'fHow'))}</div>`;
 }
 function showReport(){
   const P=PENDING;const nerr=P.rep.filter(r=>r.lvl==='err').length,nw=P.rep.filter(r=>r.lvl==='warn').length;
