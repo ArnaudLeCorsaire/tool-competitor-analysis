@@ -32,6 +32,9 @@ const z={};
 for(const k in BOX){const [a,b,c,d]=BOX[k];let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   for(let i=0;i<=20;i++)for(const [lo,la] of [[a+(c-a)*i/20,b],[a+(c-a)*i/20,d],[a,b+(d-b)*i/20],[c,b+(d-b)*i/20]]){const [x,y]=proj([lo,la]);x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}
   z[k]=[x0,y0,x1,y1].map(v=>+v.toFixed(1));}
-const res={w:W,h:H,c:out,bg,z};
+/* Villes des sièges et hubs (longitude, latitude), projetées comme la carte */
+const lieux=JSON.parse(fs.readFileSync('lieux.json'));
+const p={};for(const k in lieux){const [x,y]=proj(lieux[k]);p[k]=[+x.toFixed(1),+y.toFixed(1)];}
+const res={w:W,h:H,c:out,bg,z,p};
 fs.writeFileSync('carte.json',JSON.stringify(res));
 console.log('size',JSON.stringify(res).length,'small',out.filter(o=>o.s).map(o=>o.n).join(', '));

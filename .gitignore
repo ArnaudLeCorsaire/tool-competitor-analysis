@@ -7,3 +7,6 @@ package-lock.json
 outils/carte/carte.json
 # Le document source n est pas versionne
 *.docx
+
+# Paquet de traductions du contenu du document (donnée, non versionnée)
+*traductions*.json

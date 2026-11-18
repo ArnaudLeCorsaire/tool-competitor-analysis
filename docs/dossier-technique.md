@@ -1,6 +1,6 @@
 # Competitor Analysis — dossier technique
 
-*Dernière mise à jour : 18/11/2026 — version 1.0*
+*Dernière mise à jour : 18/11/2026 — version 1.1*
 
 ## En bref
 
@@ -108,10 +108,36 @@ Le document importé est transformé une fois par `docToData()` ; tous les chiff
 | `ON-BR` | Succursale / bureau | Sur place |
 | `EU-PASS` | Passeport UE | Passeport UE |
 | `XB-CLR` | Transfrontalier | Transfrontalier |
-| `LIM-COR` | Corridor limité | Limité |
-| `NONE-SANC` | Sanctionné / exclu | Sanctionné |
+| `LIM-COR` | Corridor restreint (contexte pays) | Restreint (pays) |
+| `NONE-SANC` | Sanctions internationales | Sanctions internationales |
 
-**Couleurs des concurrents** (fixes, dans `BANKS_REF`) : JPMorgan brun `#7A4E2D`, Citi bleu `#1E88E5`, HSBC rouge `#D32F2F`, Deutsche Bank marine `#1A237E`, Goldman Sachs or `#C9A227`, Bank of America orange `#EF6C00`, Crédit Agricole CIB sarcelle `#00838F`, Santander framboise `#C2185B`, BBVA violet `#6A1B9A`, Standard Chartered ardoise `#546E7A`. Les modes de présence sont des teintes de la couleur du concurrent.
+`LIM-COR` et `NONE-SANC` décrivent **la situation du pays**, pas une décision de la banque. `NONE-SANC` concerne 6 pays (Iran, Corée du Nord, Syrie, Russie, Biélorussie, Cuba), sanctionnés pour les 10 banques. `LIM-COR` couvre, selon la définition du document, des pays fragiles, en conflit ou des micro-États (sanctions partielles, contrôles anti-blanchiment) servis seulement par des canaux multilatéraux ou humanitaires. L'outil l'écrit sur chaque fiche et dans chaque résumé copié.
+
+**Nature de l'activité** (`actOf`), déduite du document :
+
+| Code de présence | Banque avec trade finance | Goldman Sachs |
+| --- | --- | --- |
+| `ON-HQ`, `ON-SUB`, `ON-BR` | Cash management + trade finance sur place | Cash management sur place |
+| `EU-PASS` | Cash management + trade finance via passeport UE | Cash management via passeport UE |
+| `XB-CLR` | Cash management + trade finance en transfrontalier (paiements, encaissements, confirmations documentaires) | Cash management en transfrontalier |
+| `LIM-COR` | Opérations ponctuelles (canaux multilatéraux ou humanitaires) | idem |
+| `NONE-SANC` | Aucune activité (sanctions internationales) | idem |
+
+La capacité de chaque banque vient de son profil : une phrase « does not operate … trade finance » la marque « sans trade finance documentaire » (`bankTFInfo`). Dans le document du 18/11/2026, seule Goldman Sachs est dans ce cas (lettres de crédit et garanties absentes, financement du besoin en fonds de roulement uniquement). La portée vient de la définition du code de présence dans le tableau des codes.
+
+**Axe du pays** (`focusOf`) : classement automatique des mots de la justification du pays (trade, export, commodity, ECA… → trade finance ; clearing, cash, treasury, SEPA, USD… → cash management ; les deux ; non précisé). Les mots retenus sont affichés dans la source de la donnée.
+
+**Filtres** : la carte filtre par activité (cash management, trade finance) ; le tableau filtre par continent, concurrent, présence, activité (cash management, trade finance, cash management sans trade finance) et axe du pays.
+
+**Couleurs des concurrents** (fixes, dans `BANKS_REF`) : JPMorgan brun `#7A4E2D`, Citi bleu `#1E88E5`, HSBC rouge `#D32F2F`, Deutsche Bank marine `#1A237E`, Goldman Sachs or `#C9A227`, Bank of America orange `#EF6C00`, Crédit Agricole CIB sarcelle `#00838F`, Santander framboise `#C2185B`, BBVA violet `#6A1B9A`, Standard Chartered vert vif `#3DB54A` (depuis la version 1.1). Les modes de présence sont des teintes de la couleur du concurrent.
+
+**Sièges et hubs** (`SITES`) : un losange pour le siège, un rond pour chaque hub régional, positionnés sur la carte (villes projetées par `outils/carte`, fichier `lieux.json`). Le pays du siège vient du code `ON-HQ` du document ; la ville et les hubs viennent des profils et de la matrice quand ils les citent (Charlotte, Francfort, Dublin, Hong Kong, Bangkok, Accra…), sinon d'une information publique générale, ce que la source de la donnée précise.
+
+**Source de chaque donnée** (`whyHTML`) : toute donnée soulignée en pointillé s'ouvre sur sa source : section, tableau, ligne et colonne du document, valeur d'origine (en anglais), sources citées par le document avec leur lien, et pour les chiffres et activités, le calcul ou la déduction de l'outil.
+
+**Résumés à copier** (`bankSummary`, `countrySummary`, `mapSummary`, `tableSummary`) : boutons « Copier » sur la fiche pays, la fiche concurrent, chaque continent d'une fiche concurrent, la carte et le tableau filtré. Le résumé est copié en texte et en HTML (collage mis en forme dans Outlook ou Teams), avec la source du document, la date des données et l'avertissement de fiabilité.
+
+**Traduction du contenu du document** : le document est en anglais. Un paquet de traductions FR / NL (`competitor-analysis-traductions.json`, 326 textes) s'importe dans l'onglet Données après le document ; il est rangé chiffré avec les données et publié avec l'édition. La clé de chaque texte est le texte anglais avec ses renvois écrits ⟦n⟧ (`segKey`). Un texte sans traduction s'affiche en anglais avec la marque « EN ». Lors d'un nouvel import, les traductions des textes inchangés sont conservées ; les textes nouveaux ou modifiés demandent un paquet mis à jour.
 
 **Contrôle d'import** (`docToData`) : concurrents reconnus, nombre de pays par continent comparé au nombre annoncé, codes inconnus, pays sans contour sur la carte, renvois vers des sources absentes, écarts entre la synthèse du document et le détail pays par pays.
 
@@ -129,6 +155,9 @@ Le document importé est transformé une fois par `docToData()` ; tous les chiff
 | Écrans | `viewMap`, `viewCountries`, `openCountry`, `viewBanks`, `viewBank`, `viewTable`, `viewMethod` |
 | Admin | `viewData`, `importDocx`, `viewPub`, `teamFolder`, `publish`, `exportEdition` |
 | Standard | `viewEdition`, `stdSync`, `applyEdition` |
+| Activité, axe du pays, sièges | `actOf`, `bankTFInfo`, `focusOf`, `SITES`, `paintSites` |
+| Sources des données, copies | `whyHTML`, `showWhy`, `bankSummary`, `countrySummary`, `copyRich` |
+| Traductions du contenu | `segKey`, `segHTML`, `allTrKeys`, `importTr` |
 
 **Précautions**
 
@@ -137,7 +166,7 @@ Le document importé est transformé une fois par `docToData()` ; tous les chiff
 - Le fond de carte se régénère avec `outils/carte` (`npm ci`, `node construire_carte.mjs`, `python3 inserer_carte.py`), jamais à la main.
 - Si un nouveau document change la structure (titres de sections, colonnes), adapter `docToData` et vérifier le rapport de contrôle.
 
-**Tester avant de livrer** : `python3 outils/fabriquer_standard.py` puis `node tests/e2e.cjs <document.docx>`. Le test couvre : création du mot de passe, import et rapport, carte, fiches, filtres, trois langues, publication chiffrée, verrouillage, mauvais mot de passe, édition standard, mauvaise clé d'équipe, absence d'erreur JavaScript et de requête réseau.
+**Tester avant de livrer** : `python3 outils/fabriquer_standard.py` puis `node tests/e2e.cjs <document.docx> [captures] [traductions.json]`. Le test couvre : création du mot de passe, import et rapport, traductions, carte, sièges et hubs, filtres d'activité, sources des données, résumés copiés, fiches, filtres du tableau, trois langues, publication chiffrée, verrouillage, mauvais mot de passe, édition standard, mauvaise clé d'équipe, absence d'erreur JavaScript et de requête réseau.
 
 **Livrer** : publier les deux fichiers de `dist/` avec `SHA256SUMS.txt` et garder la version précédente.
 
@@ -147,4 +176,6 @@ Le document importé est transformé une fois par `docToData()` ; tous les chiff
 - **Mot de passe perdu = données locales perdues.** L'admin garde une sauvegarde ; l'utilisateur standard recharge simplement l'édition de l'équipe.
 - **BNP Paribas** n'est pas dans le jeu de données : ajout prévu dans une version suivante, avec des données internes.
 - **Mise à jour du document** : la charte du document prévoit un rafraîchissement en avril et en novembre ; chaque nouvel import crée une version dans l'historique.
+- **Nature de l'activité déduite** : le document ne donne pas de colonne « cash management / trade finance » par pays et par banque ; l'outil la déduit de la capacité de la banque et de la définition des codes, et le dit dans la source de chaque donnée. L'axe du pays est un classement automatique de mots-clés.
+- **Traductions** : rédigées avec l'aide d'un modèle d'IA à partir du document anglais ; l'original reste consultable dans la source de chaque donnée. Un nouveau document demande un paquet de traductions mis à jour pour les textes modifiés.
 - **Autorisation du dossier** : après un rechargement, Edge et Chrome peuvent redemander l'accès au dossier partagé ; un bandeau « Se reconnecter » le fait en un clic.

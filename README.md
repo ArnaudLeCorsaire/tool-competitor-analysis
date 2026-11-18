@@ -4,19 +4,21 @@ Outil interne qui présente l'activité des concurrents de BNP Paribas en cash m
 
 Les données viennent d'un document Word produit à partir de sources ouvertes avec l'aide d'un modèle d'IA. **Toutes les informations sont faillibles** : l'outil le rappelle sur chaque écran et recalcule ses chiffres à partir du détail pays par pays.
 
-> **Version 1.0** — 18/11/2026. Interface en français, anglais et néerlandais.
+> **Version 1.1** — 18/11/2026. Interface et contenu du document en français, anglais et néerlandais.
 
 ## Ce que fait l'outil
 
 | Écran | Contenu |
 | --- | --- |
-| Carte | Monde coloré par concurrent (une couleur par banque) ou vue d'ensemble du nombre de concurrents sur place ; zoom par continent |
+| Carte | Monde coloré par concurrent (une couleur par banque) ou vue d'ensemble ; filtre cash management / trade finance ; sièges et hubs régionaux ; zoom par continent |
 | Pays | Recherche dans les trois langues, filtre par continent, barre de présence des 10 concurrents par pays |
-| Fiche pays | Mode de présence et date d'implantation de chaque concurrent, justification et sources |
-| Concurrents | Fiche par banque : chiffres recalculés, couverture par continent, pays sur place, profil, visuel, sources réglementaires |
-| Tableau | Matrice 193 pays × 10 concurrents, filtrable par continent, concurrent et type de présence |
+| Fiche pays | Présence, date d'implantation et activité (cash management, trade finance) de chaque concurrent, axe du pays, justification ; sanctions et restrictions expliquées comme contexte du pays |
+| Concurrents | Fiche par banque : chiffres recalculés, activité, sièges et hubs, couverture par continent dépliable, pays sur place, profil, visuel, sources réglementaires |
+| Tableau | Matrice 193 pays × 10 concurrents, filtrable par continent, concurrent, présence, activité et axe du pays |
 | Méthode et sources | Avertissement de fiabilité, codes de présence, synthèse du document, gouvernance, 72 sources |
-| Données *(admin)* | Import du `.docx` avec rapport de contrôle, historique, sauvegarde chiffrée |
+| Données *(admin)* | Import du `.docx` avec rapport de contrôle, import des traductions FR / NL, historique, sauvegarde chiffrée |
+
+Partout : **chaque donnée soulignée en pointillé ouvre sa source** (section, ligne et colonne du document, valeur d'origine, sources citées, calcul de l'outil), et **des boutons « Copier »** mettent un résumé prêt à partager dans le presse-papiers (fiche pays, fiche concurrent, un concurrent sur un continent, carte, tableau filtré).
 | Publication *(admin)* | Publication de l'édition chiffrée dans le dossier réseau de l'équipe |
 | Édition *(standard)* | Connexion au dossier de l'équipe ou chargement d'un fichier d'édition |
 
@@ -37,7 +39,7 @@ Les données viennent d'un document Word produit à partir de sources ouvertes a
 | `tests/e2e.cjs` | Test de bout en bout des deux éditions dans Chromium |
 | `docs/` | Dossier technique et journal des versions |
 
-Le document source `.docx` n'est pas versionné : il est importé dans l'outil par l'administrateur.
+Le document source `.docx` et le paquet de traductions `competitor-analysis-traductions.json` ne sont pas versionnés : ils contiennent les données et sont importés dans l'outil par l'administrateur, qui les y garde chiffrés.
 
 ## Fabriquer et tester
 
@@ -46,7 +48,7 @@ python3 outils/fabriquer_standard.py
 ```
 
 ```bash
-node tests/e2e.cjs chemin/vers/Activites_Mondiales_de_Cash_Management.docx
+node tests/e2e.cjs chemin/vers/Activites_Mondiales_de_Cash_Management.docx captures chemin/vers/competitor-analysis-traductions.json
 ```
 
 Le test demande Node.js et Playwright avec Chromium.
