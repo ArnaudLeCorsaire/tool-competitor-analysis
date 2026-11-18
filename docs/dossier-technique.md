@@ -1,16 +1,16 @@
 # Competitor Analysis — dossier technique
 
-*Dernière mise à jour : 18/11/2026 — version 1.1*
+*Dernière mise à jour : 18/11/2026 — version 1.2*
 
 ## En bref
 
-Competitor Analysis est **un fichier HTML statique par édition** (≈ 370 Ko, sans dépendance) qui fonctionne entièrement dans le navigateur. Il présente l'activité de 10 concurrents de BNP Paribas en cash management et trade finance dans les 193 États membres de l'ONU. Le serveur ne fait que servir le fichier : il ne reçoit, ne stocke et ne voit aucune donnée.
+Competitor Analysis est **un seul fichier HTML statique** (≈ 420 Ko, sans dépendance), avec deux profils de connexion, Admin et Standard, qui fonctionne entièrement dans le navigateur. Il présente l'activité de 10 concurrents de BNP Paribas en cash management et trade finance dans les 193 États membres de l'ONU. Le serveur ne fait que servir le fichier : il ne reçoit, ne stocke et ne voit aucune donnée.
 
 Trois règles portent la conformité de l'outil, comme pour MarCom CRM :
 
 1. **Aucune sortie réseau.** L'outil ne contacte rien (ni API, ni CDN, ni police, ni statistique). La CSP l'interdit et doit le rester. Le fond de carte est intégré au fichier.
 2. **Aucune donnée en clair sur le disque, le serveur ou le dossier partagé.** Tout est chiffré avec le mot de passe de l'utilisateur ou la clé d'équipe.
-3. **Un seul fichier autonome** par édition : envoyable, utilisable hors ligne, sans fichier annexe.
+3. **Un seul fichier autonome** pour les deux profils : envoyable, utilisable hors ligne, sans fichier annexe.
 
 **Fiabilité des données.** Le document source a été produit en sources ouvertes avec l'aide d'un modèle d'IA. Toutes les informations sont faillibles. L'outil l'affiche en pied de chaque écran et dans « Méthode et sources ».
 
@@ -18,7 +18,7 @@ Navigateurs pris en charge : Microsoft Edge et Google Chrome récents (Chromium)
 
 ## Architecture
 
-HTML, CSS et JavaScript sont dans un seul fichier, sans framework ni compilation. Le code source est `src/Competitor_Analysis_admin.html`.
+HTML, CSS et JavaScript sont dans un seul fichier, sans framework ni compilation. Le code source est `src/Competitor_Analysis.html`.
 
 | Partie du fichier | Rôle |
 | --- | --- |
@@ -41,7 +41,7 @@ L'import du document se fait dans le navigateur. Le `.docx` est un zip ; l'outil
 | Verrouillage | Après 10 minutes sans activité, la clé et les données sont effacées de la mémoire | `IDLE_MS`, `lockApp` |
 | Clé d'équipe | 12 caractères minimum, transmise de vive voix, gardée dans le coffre chiffré de chaque utilisateur | `teamFolder`, `verifyTeam` |
 
-Interdits volontaires, contrôlés par `fabriquer_standard.py` : `fetch(`, `XMLHttpRequest`, `createObjectURL`, `a.download`, `atob(`, `btoa(`. Les enregistrements passent par `showSaveFilePicker`, le base64 par les fonctions maison `toB64` / `fromB64`.
+Interdits volontaires, contrôlés par `outils/fabriquer.py` : `fetch(`, `XMLHttpRequest`, `createObjectURL`, `a.download`, `atob(`, `btoa(`. Les enregistrements passent par `showSaveFilePicker`, le base64 par les fonctions maison `toB64` / `fromB64`.
 
 Les liens vers les sources du document s'ouvrent dans un nouvel onglet (`rel="noopener noreferrer"`) : c'est une navigation volontaire de l'utilisateur, pas une requête de l'outil.
 
@@ -58,18 +58,24 @@ Les données vivent dans l'IndexedDB du navigateur, rattachées à l'origine du 
 | `ca-tool-standard` | `vault` | Coffre de l'utilisateur standard : dernière édition chargée, clé d'équipe |
 | `ca-tool-standard` | `folder` | Accès au dossier d'équipe |
 
-Le `localStorage` ne garde que la langue et le dernier onglet (`ca:` pour l'admin, `ca-std:` pour le standard).
+Le `localStorage` ne garde que des préférences : la langue et le dernier profil choisi (`ca-g:`), le dernier onglet de chaque profil (`ca:` pour l'admin, `ca-std:` pour le standard). Les noms des bases et des préfixes sont ceux des versions 1.0 et 1.1 : les données déjà saisies sur la même adresse restent lisibles.
 
 **Sauvegarde (admin)** : « Sauvegarder » écrit un `.json` contenant le coffre chiffré ; « Restaurer » le relit avec le mot de passe utilisé lors de la sauvegarde.
 
-## Éditions admin et standard, dossier partagé
+## Profils Admin et Standard, dossier partagé
 
-| Fichier | Pour qui | Contenu |
+Depuis la version 1.2, l'outil est **un seul fichier** `Competitor_Analysis.html`. L'écran de connexion propose deux profils ; chacun a **son propre mot de passe et son propre coffre chiffré** dans le navigateur.
+
+| Profil | Pour qui | Ce qu'il voit |
 | --- | --- | --- |
-| `Competitor_Analysis_admin.html` | Administrateurs | Tout l'outil, plus Données (import, contrôle, historique, sauvegarde) et Publication |
-| `Competitor_Analysis_standard.html` | Utilisateurs autorisés | Consultation : carte, pays, concurrents, tableau, méthode ; onglet Édition. Le code d'import et de publication n'est pas dans le fichier |
+| Admin | Administrateurs | Tout l'outil, plus Données (import, contrôle, traductions, historique, sauvegarde) et Publication |
+| Standard | Utilisateurs autorisés | Consultation : carte, pays, concurrents, tableau, méthode ; onglet Édition pour charger l'édition de l'équipe |
 
-L'édition standard est fabriquée par `python3 outils/fabriquer_standard.py` : le script retire les blocs marqués ADMIN (début / fin), remplace `EDITION='admin'` par `'standard'`, contrôle les interdits et écrit `dist/` avec les empreintes SHA-256. On modifie toujours l'édition admin, puis on relance le script.
+Le profil est fixé à la connexion (`setRole`) : il choisit la base IndexedDB (`ca-tool-admin` ou `ca-tool-standard`) et les onglets. Un mot de passe ouvre seulement le coffre de son profil ; « Verrouiller / changer de profil » revient à l'écran de connexion. L'outil propose le dernier profil utilisé sur le poste.
+
+**Ce qui protège les fonctions d'administration** : le code d'import et de publication est désormais dans le fichier de tous les utilisateurs. Un utilisateur qui crée un profil Admin sur son poste n'obtient aucune donnée (coffres séparés) et ne peut rien publier pour l'équipe sans les droits d'écriture sur le dossier partagé et la clé d'équipe. Les vraies barrières sont donc : le mot de passe de chaque profil, les droits NTFS du dossier et la clé d'équipe.
+
+`python3 outils/fabriquer.py` contrôle les interdits et la CSP, puis écrit `dist/Competitor_Analysis.html` et son empreinte SHA-256.
 
 **Dossier partagé** (aucun serveur ni API ; le navigateur lit et écrit des fichiers chiffrés) :
 
@@ -78,17 +84,17 @@ L'édition standard est fabriquée par `python3 outils/fabriquer_standard.py` : 
 | `ca-equipe.json` | un admin, à la création | Sel et témoin chiffré de la clé d'équipe ; aucune donnée |
 | `edition.cae` | les admins (« Publier l'édition pour l'équipe ») | Toutes les données, chiffrées AES-GCM 256 avec la clé d'équipe. En clair : numéro, date, auteur, nombre de pays et de concurrents |
 
-L'édition standard lit le dossier au déverrouillage, au retour sur la fenêtre et toutes les 5 minutes, et charge une édition plus récente si elle existe. À défaut de dossier, l'admin peut **exporter l'édition** dans un fichier `.cae` que l'utilisateur standard charge avec la clé d'équipe.
+Le profil Standard lit le dossier au déverrouillage, au retour sur la fenêtre et toutes les 5 minutes, et charge une édition plus récente si elle existe. À défaut de dossier, l'admin peut **exporter l'édition** dans un fichier `.cae` que l'utilisateur standard charge avec la clé d'équipe.
 
-**Droits NTFS** : administrateurs en Modification ; utilisateurs standard en Lecture seule (ils n'écrivent rien dans le dossier en version 1.0).
+**Droits NTFS** : administrateurs en Modification ; utilisateurs standard en Lecture seule (ils n'écrivent rien dans le dossier). Ce sont ces droits qui réservent la publication aux administrateurs.
 
 ## Hébergement sur le serveur intranet
 
 - **HTTPS obligatoire** : `crypto.subtle` et l'accès au dossier partagé n'existent qu'en contexte sécurisé.
-- **Une origine dédiée** ; les deux éditions peuvent la partager (bases IndexedDB distinctes).
+- **Une origine dédiée** pour le fichier unique (les deux profils y ont des bases IndexedDB distinctes).
 - **Fichier servi tel quel** : `Content-Type: text/html; charset=utf-8`, sans réécriture ni injection de script.
 - En-têtes recommandés : `Content-Security-Policy: frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cache-Control: no-cache`.
-- **Accès** : deux adresses protégées par SSO, par exemple `…/competitor-admin` (administrateurs) et `…/competitor` (utilisateurs autorisés).
+- **Accès** : une seule adresse protégée par SSO, par exemple `…/competitor`, ouverte au groupe des utilisateurs autorisés (administrateurs compris). Si l'outil était déjà servi à deux adresses sur la même origine, les données sont conservées ; sur une autre origine, l'admin restaure sa sauvegarde et les utilisateurs standard reconnectent l'édition.
 - **Mises à jour** : remplacer les fichiers ; garder les versions précédentes et leurs empreintes (`dist/SHA256SUMS.txt`).
 
 ## Modèle de données et calculs
@@ -155,6 +161,7 @@ La capacité de chaque banque vient de son profil : une phrase « does not opera
 | Écrans | `viewMap`, `viewCountries`, `openCountry`, `viewBanks`, `viewBank`, `viewTable`, `viewMethod` |
 | Admin | `viewData`, `importDocx`, `viewPub`, `teamFolder`, `publish`, `exportEdition` |
 | Standard | `viewEdition`, `stdSync`, `applyEdition` |
+| Profils et connexion | `setRole`, `showLock`, `lockApp`, `gGet` / `gSet` |
 | Activité, axe du pays, sièges | `actOf`, `bankTFInfo`, `focusOf`, `SITES`, `paintSites` |
 | Sources des données, copies | `whyHTML`, `showWhy`, `bankSummary`, `countrySummary`, `copyRich` |
 | Traductions du contenu | `segKey`, `segHTML`, `allTrKeys`, `importTr` |
@@ -166,9 +173,9 @@ La capacité de chaque banque vient de son profil : une phrase « does not opera
 - Le fond de carte se régénère avec `outils/carte` (`npm ci`, `node construire_carte.mjs`, `python3 inserer_carte.py`), jamais à la main.
 - Si un nouveau document change la structure (titres de sections, colonnes), adapter `docToData` et vérifier le rapport de contrôle.
 
-**Tester avant de livrer** : `python3 outils/fabriquer_standard.py` puis `node tests/e2e.cjs <document.docx> [captures] [traductions.json]`. Le test couvre : création du mot de passe, import et rapport, traductions, carte, sièges et hubs, filtres d'activité, sources des données, résumés copiés, fiches, filtres du tableau, trois langues, publication chiffrée, verrouillage, mauvais mot de passe, édition standard, mauvaise clé d'équipe, absence d'erreur JavaScript et de requête réseau.
+**Tester avant de livrer** : `python3 outils/fabriquer.py` puis `node tests/e2e.cjs <document.docx> [captures] [traductions.json]`. Le test couvre : création du mot de passe, import et rapport, traductions, carte, sièges et hubs, filtres d'activité, sources des données, résumés copiés, fiches, filtres du tableau, trois langues, publication chiffrée, verrouillage, mauvais mot de passe, édition standard, mauvaise clé d'équipe, absence d'erreur JavaScript et de requête réseau.
 
-**Livrer** : publier les deux fichiers de `dist/` avec `SHA256SUMS.txt` et garder la version précédente.
+**Livrer** : publier `dist/Competitor_Analysis.html` avec `SHA256SUMS.txt` et garder la version précédente.
 
 ## Points d'attention
 

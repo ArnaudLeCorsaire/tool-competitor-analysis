@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Insère carte.json dans l'édition admin, entre /*CARTE-DEBUT*/ et /*CARTE-FIN*/.
-Usage : python3 inserer_carte.py [../../src/Competitor_Analysis_admin.html]"""
+Usage : python3 inserer_carte.py [../../src/Competitor_Analysis.html]"""
 import json, re, sys, pathlib
 ici = pathlib.Path(__file__).parent
-cible = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ici / '../../src/Competitor_Analysis_admin.html'
+cible = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ici / '../../src/Competitor_Analysis.html'
 carte = json.loads((ici / 'carte.json').read_text(encoding='utf-8'))
 html = cible.read_text(encoding='utf-8')
 nouveau, n = re.subn(r'/\*CARTE-DEBUT\*/.*?/\*CARTE-FIN\*/',

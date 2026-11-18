@@ -52,7 +52,8 @@ sup.ref a:hover{color:var(--green-d);text-decoration:underline}
 
 /* Verrouillage */
 #lock{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#F6F7F8 0%,#EDF3F0 100%)}
-#lock .box{width:min(420px,92vw);padding:28px}
+#lock .box{width:min(440px,92vw);padding:28px}
+#lkRole{display:flex}
 #lock .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
 .logo{width:34px;height:34px;border-radius:9px;background:var(--green);display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px;letter-spacing:.5px;flex:none}
 #lock label{display:block;font-size:12.5px;color:var(--ink2);margin:12px 0 4px}
@@ -233,6 +234,8 @@ b[data-w],span[data-w]:not(.mbadge):not(.ctag):not(.wv),em[data-w]{text-decorati
 <div id="lock">
   <div class="box card">
     <div class="brand"><div class="logo">CA</div><div><b id="lkTitle">Competitor Analysis</b><div class="muted small" id="lkSub"></div></div></div>
+    <div class="seg" id="lkRole" role="tablist" style="width:100%;margin-bottom:6px"><button data-r="standard" style="flex:1"></button><button data-r="admin" style="flex:1"></button></div>
+    <p class="small muted" id="lkRoleHelp" style="margin:4px 0 6px"></p>
     <div id="lkForm"></div>
     <div class="err" id="lkErr"></div>
     <div class="foot">
@@ -270,14 +273,13 @@ b[data-w],span[data-w]:not(.mbadge):not(.ctag):not(.wv),em[data-w]{text-decorati
 /* ===================================================================
    Competitor Analysis — Cash Management & Trade Finance
    Fichier unique, sans dépendance ni appel réseau.
-   EDITION est remplacé par 'standard' par outils/fabriquer_standard.py.
-   Les blocs encadrés par les marqueurs ADMIN (début / fin) sont retirés de l’édition standard.
+   Un seul fichier, deux profils choisis à la connexion : Admin et Standard.
+   Chaque profil a son mot de passe et son coffre chiffré (bases IndexedDB distinctes).
    =================================================================== */
-const EDITION='admin';
-const IS_ADMIN=EDITION==='admin';
-const APP_VERSION='1.1';
-const DBNAME=IS_ADMIN?'ca-tool-admin':'ca-tool-standard';
-const LSP=IS_ADMIN?'ca:':'ca-std:';
+const APP_VERSION='1.2';
+/* Profil courant : 'admin' ou 'standard'. Mêmes noms de bases et de préfixes qu'en 1.0 / 1.1 : les données existantes restent lisibles. */
+let ROLE='standard', IS_ADMIN=false, DBNAME='ca-tool-standard', LSP='ca-std:';
+function setRole(r){ROLE=r==='admin'?'admin':'standard';IS_ADMIN=ROLE==='admin';DBNAME=IS_ADMIN?'ca-tool-admin':'ca-tool-standard';LSP=IS_ADMIN?'ca:':'ca-std:';DBP=null;gSet('role',ROLE);}
 const IDLE_MS=10*60*1000;
 const PBKDF2_IT=310000;
 const TEAM_FILE='ca-equipe.json';
@@ -486,6 +488,9 @@ nl:{
 
 /* ---------- Textes ajoutés en version 1.1 ---------- */
 Object.assign(L.fr,{
+ lkRoleStd:'Standard', lkRoleAdm:'Admin', lockOut:'Verrouiller / changer de profil',
+ lkRoleStdHelp:'Consultation de l’édition publiée par l’équipe. Chaque profil a son propre mot de passe et ses propres données chiffrées.',
+ lkRoleAdmHelp:'Import du document, contrôle et publication pour l’équipe. Mot de passe distinct de celui du profil Standard.',
  'm.LIM-COR':'Corridor restreint (contexte pays)','m.NONE-SANC':'Sanctions internationales',
  'ms.XB-CLR':'Transf.','ms.LIM-COR':'Restr.','ms.NONE-SANC':'Sanct.',
  'g.lim':'Restreint (pays)','g.sanc':'Sanctions internationales',
@@ -517,6 +522,9 @@ Object.assign(L.fr,{
  noTF:'pas de trade finance'
 });
 Object.assign(L.en,{
+ lkRoleStd:'Standard', lkRoleAdm:'Admin', lockOut:'Lock / switch profile',
+ lkRoleStdHelp:'Consult the edition published by the team. Each profile has its own password and its own encrypted data.',
+ lkRoleAdmHelp:'Import the document, check it and publish it for the team. Password separate from the Standard profile.',
  'm.LIM-COR':'Restricted corridor (country context)','m.NONE-SANC':'International sanctions',
  'ms.XB-CLR':'XB','ms.LIM-COR':'Restr.','ms.NONE-SANC':'Sanct.',
  'g.lim':'Restricted (country)','g.sanc':'International sanctions',
@@ -548,6 +556,9 @@ Object.assign(L.en,{
  noTF:'no trade finance'
 });
 Object.assign(L.nl,{
+ lkRoleStd:'Standaard', lkRoleAdm:'Admin', lockOut:'Vergrendelen / profiel wisselen',
+ lkRoleStdHelp:'Raadpleeg de editie die het team heeft gepubliceerd. Elk profiel heeft een eigen wachtwoord en eigen versleutelde gegevens.',
+ lkRoleAdmHelp:'Document importeren, controleren en publiceren voor het team. Ander wachtwoord dan het Standaard-profiel.',
  'm.LIM-COR':'Beperkte corridor (landcontext)','m.NONE-SANC':'Internationale sancties',
  'ms.XB-CLR':'Grens.','ms.LIM-COR':'Bep.','ms.NONE-SANC':'Sanct.',
  'g.lim':'Beperkt (land)','g.sanc':'Internationale sancties',
@@ -613,6 +624,8 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 let LANG='fr';
 function t(k,...a){let s=(L[LANG]&&L[LANG][k]);if(s==null)s=L.fr[k];if(s==null)s=k;a.forEach((v,i)=>{s=s.split('{'+i+'}').join(v);});return s;}
 function lsGet(k){try{return localStorage.getItem(LSP+k);}catch(e){return null;}}
+function gGet(k){try{return localStorage.getItem('ca-g:'+k);}catch(e){return null;}}
+function gSet(k,v){try{localStorage.setItem('ca-g:'+k,v);}catch(e){}}
 function lsSet(k,v){try{localStorage.setItem(LSP+k,v);}catch(e){}}
 function fmtDate(iso){if(!iso)return '';const d=new Date(iso);return d.toLocaleDateString(LANG==='nl'?'nl-BE':LANG==='en'?'en-GB':'fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});}
 function fmtDT(iso){if(!iso)return '';const d=new Date(iso);return d.toLocaleString(LANG==='nl'?'nl-BE':LANG==='en'?'en-GB':'fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
@@ -665,6 +678,8 @@ setInterval(()=>{if(KEY&&Date.now()-LAST_ACT>IDLE_MS)lockApp(true);},15000);
 async function showLock(msg){
   $('#app').classList.add('hidden');$('#lock').classList.remove('hidden');closeDrawer();closeModal();
   $('#lkSub').textContent=t('sub');$('#lkLang').value=LANG;$('#lkReset').textContent=t('lkReset');
+  document.querySelectorAll('#lkRole button').forEach(b=>{b.textContent=t(b.dataset.r==='admin'?'lkRoleAdm':'lkRoleStd');b.classList.toggle('on',b.dataset.r===ROLE);});
+  $('#lkRoleHelp').textContent=t(IS_ADMIN?'lkRoleAdmHelp':'lkRoleStdHelp');
   const v=await kvGet('vault');const f=$('#lkForm');$('#lkErr').textContent=msg||'';
   if(!v){
     f.innerHTML=`<p class="small" style="margin:0 0 4px">${esc(t('lkCreate'))}</p>
@@ -690,9 +705,10 @@ async function showLock(msg){
     $('#lkGo').onclick=go;$('#lkPw').onkeydown=e=>{if(e.key==='Enter')go();};$('#lkPw').focus();
   }
 }
-function lockApp(idle){KEY=null;STATE=null;M=null;SALT=null;$('#main').innerHTML='';showLock(idle?t('lkLocked'):'');}
+$('#lkRole').onclick=e=>{const b=e.target.closest('[data-r]');if(!b||b.dataset.r===ROLE)return;setRole(b.dataset.r);showLock();};
+function lockApp(idle){KEY=null;STATE=null;M=null;SALT=null;if(typeof PENDING!=='undefined')PENDING=null;$('#main').innerHTML='';showLock(idle?t('lkLocked'):'');}
 $('#lkReset').onclick=async()=>{if(!confirm(t('lkResetQ')))return;await kvClear();try{Object.keys(localStorage).filter(k=>k.startsWith(LSP)&&k!==LSP+'lang').forEach(k=>localStorage.removeItem(k));}catch(e){}showLock();};
-$('#lkLang').onchange=e=>{LANG=e.target.value;lsSet('lang',LANG);document.documentElement.lang=LANG;showLock();};
+$('#lkLang').onchange=e=>{LANG=e.target.value;gSet('lang',LANG);document.documentElement.lang=LANG;showLock();};
 
 /* ---------- Modèle (recalculé à partir des données) ---------- */
 function buildModel(){
@@ -787,7 +803,6 @@ function focusOf(c){const s=segEN(c.just);const tf=[...new Set((s.match(FOCUS_TF
 
 function srcTitle(n){const s=M&&M.D.sources[n-1];return s?(s.title+(s.url?' — '+s.url:'')):'';}
 
-/*ADMIN-DEBUT*/
 /* ---------- Lecture du .docx (zip + XML), sans bibliothèque ---------- */
 async function inflateRaw(data){
   const s=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
@@ -953,14 +968,13 @@ async function docToData(buf,fileName,onImg){
   return {data,rep,fatal:false};
 }
 function normCont(s){s=String(s||'').trim().toLowerCase();if(s.startsWith('africa'))return 'Africa';if(s.startsWith('asia'))return 'Asia';if(s.startsWith('europe'))return 'Europe';if(s.startsWith('north'))return 'North America';if(s.startsWith('oceania'))return 'Oceania';if(s.startsWith('south'))return 'South America';return s?s.charAt(0).toUpperCase()+s.slice(1):'?';}
-/*ADMIN-FIN*/
 
 /* ---------- Coquille de l'application ---------- */
 let VIEW='map';
 const UI={mapLayer:'all',mapAct:'',sites:true,cont:'',q:'',tb:{q:'',cont:'',bank:'',mode:'',act:'',focus:'',sort:'name'},bankOpen:null,contOpen:null};
 function tabsDef(){
   const t0=[['map','tMap'],['countries','tCountries'],['banks','tBanks'],['table','tTable'],['method','tMethod']];
-  /*ADMIN-DEBUT*/ if(IS_ADMIN)return t0.concat([['sep'],['data','tData'],['pub','tPub']]); /*ADMIN-FIN*/
+  if(IS_ADMIN)return t0.concat([['sep'],['data','tData'],['pub','tPub']]);
   return t0.concat([['sep'],['edition','tEdition']]);
 }
 function enterApp(){
@@ -972,7 +986,7 @@ function enterApp(){
 function render(){
   document.documentElement.lang=LANG;hideWhy();
   $('#hdSub').textContent=t('sub');$('#hdEd').textContent=IS_ADMIN?t('edAdmin'):t('edStd');$('#hdEd').className='badge'+(IS_ADMIN?'':' std');
-  $('#hdLang').value=LANG;$('#hdLock').textContent=t('lock');$('#disc').textContent=t('disc')+' '+t('wHint');
+  $('#hdLang').value=LANG;$('#hdLock').textContent=t('lockOut');$('#disc').textContent=t('disc')+' '+t('wHint');
   const d=STATE&&STATE.data;
   $('#hdData').textContent=d?(IS_ADMIN?t('dataOf',d.ver||1,fmtDate(d.importedAt)):(STATE.edition?t('dataOf',STATE.edition.n,fmtDate(STATE.edition.date)):'')):'';
   $('#tabs').innerHTML=tabsDef().map(x=>x[0]==='sep'?'<span class="sep"></span>':`<button data-v="${x[0]}" class="${VIEW===x[0]?'on':''}">${esc(t(x[1]))}</button>`).join('');
@@ -980,7 +994,7 @@ function render(){
   const needData=['map','countries','banks','table','method'].includes(VIEW);
   if(needData&&!M){main.innerHTML=`<div class="empty card"><h2>${esc(t('noData'))}</h2><p>${esc(IS_ADMIN?t('noDataAdmin'):t('noDataStd'))}</p><button class="btn primary" data-go="${IS_ADMIN?'data':'edition'}">${esc(IS_ADMIN?t('goData'):t('goEdition'))}</button></div>`;return;}
   const V={map:viewMap,countries:viewCountries,banks:viewBanks,table:viewTable,method:viewMethod,edition:viewEdition};
-  /*ADMIN-DEBUT*/ V.data=viewData;V.pub=viewPub; /*ADMIN-FIN*/
+  V.data=viewData;V.pub=viewPub;
   main.onclick=null;
   (V[VIEW]||viewMap)(main);
 }
@@ -988,7 +1002,7 @@ function go(v){VIEW=v;lsSet('view',v);window.scrollTo(0,0);render();}
 $('#tabs').onclick=e=>{const b=e.target.closest('button[data-v]');if(b){if(b.dataset.v==='banks')UI.bankOpen=null;go(b.dataset.v);}};
 $('#main').addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)go(g.dataset.go);});
 $('#hdLock').onclick=()=>lockApp(false);
-$('#hdLang').onchange=e=>{LANG=e.target.value;lsSet('lang',LANG);const dc=DRAWER_C;render();if(dc!=null)openCountry(dc);};
+$('#hdLang').onchange=e=>{LANG=e.target.value;gSet('lang',LANG);const dc=DRAWER_C;render();if(dc!=null)openCountry(dc);};
 /* Renvois aux sources, sources des données (data-w), copies (data-copy) : capturés avant les autres clics */
 document.addEventListener('click',e=>{
   const a=e.target.closest('a[data-src]');
@@ -1357,7 +1371,6 @@ async function writeFile(dir,name,text){const fh=await dir.getFileHandle(name,{c
 async function folderHandle(ask){const h=await kvGet('folder');if(!h)return null;let p=await h.queryPermission({mode:IS_ADMIN?'readwrite':'read'});if(p!=='granted'&&ask)p=await h.requestPermission({mode:IS_ADMIN?'readwrite':'read'});return p==='granted'?h:{needPerm:true,h};}
 async function verifyTeam(team,pw){const k=await teamKeyFrom(pw,team.salt);try{const w=await dec(k,team.witness);return w==='ca-team-ok'?k:null;}catch(e){return null;}}
 
-/*ADMIN-DEBUT*/
 /* ---------- Admin : données ---------- */
 let PENDING=null;
 function viewData(main){
@@ -1405,7 +1418,7 @@ function showReport(){
 }
 async function backup(){
   const v=await kvGet('vault');const d=new Date().toISOString().slice(0,10);
-  await saveAs(`competitor-analysis-sauvegarde-${d}.json`,JSON.stringify({kind:'ca-backup',edition:EDITION,date:new Date().toISOString(),vault:v}),'Sauvegarde chiffrée','.json');
+  await saveAs(`competitor-analysis-sauvegarde-${d}.json`,JSON.stringify({kind:'ca-backup',edition:ROLE,date:new Date().toISOString(),vault:v}),'Sauvegarde chiffrée','.json');
 }
 async function restore(){
   const f=await pickFile('.json');if(!f)return;let o;try{o=JSON.parse(await f.text());}catch(e){return alert(t('dRestoreBad'));}
@@ -1460,7 +1473,6 @@ async function exportEdition(){
   const n=(STATE.pub&&STATE.pub.n||0)+1;const ed=await editionPayload(n);
   if(await saveAs(`competitor-analysis-edition-${n}.cae`,JSON.stringify(ed),'Édition chiffrée','.cae')){STATE.pub={n,date:ed.date};await saveVault();toast(t('pPublished',n));}
 }
-/*ADMIN-FIN*/
 
 /* ---------- Standard : édition de l'équipe ---------- */
 async function applyEdition(ed,pw){
@@ -1475,7 +1487,7 @@ async function stdSync(ask){
   try{await applyEdition(ed,STATE.team.pw);return 'new';}catch(e){return 'bad';}
 }
 async function stdAutoSync(){const r=await stdSync(false);if(r==='new'){toast(t('eUpdated',STATE.edition.n));render();}else if(r==='perm'){render();}}
-if(!IS_ADMIN){setInterval(()=>{if(KEY)stdAutoSync();},5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&KEY)stdAutoSync();});}
+setInterval(()=>{if(KEY&&!IS_ADMIN)stdAutoSync();},5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&KEY&&!IS_ADMIN)stdAutoSync();});
 async function viewEdition(main){
   const e=STATE.edition;
   main.innerHTML=`<div class="card pad"><h3 style="margin-bottom:6px">${esc(t('eTitle'))}</h3><p class="small muted" style="margin:0 0 12px">${esc(t('eIntro'))}</p>
@@ -1498,7 +1510,7 @@ async function viewEdition(main){
 
 /* ---------- Démarrage ---------- */
 (function(){
-  const l=lsGet('lang');LANG=(l&&L[l])?l:((navigator.language||'fr').slice(0,2)in L?(navigator.language||'fr').slice(0,2):'fr');
+  setRole(gGet('role')||'standard');const l=gGet('lang')||lsGet('lang');LANG=(l&&L[l])?l:((navigator.language||'fr').slice(0,2)in L?(navigator.language||'fr').slice(0,2):'fr');
   const r0=render;render=function(){r0();if(!IS_ADMIN&&UI.needPerm&&KEY){const b=document.createElement('div');b.className='callout warn row';b.style.marginBottom='12px';b.innerHTML=`<span class="grow">${esc(t('eNeedPerm'))}</span><button class="btn sm" id="rePerm">${esc(t('pReconnect'))}</button>`;$('#main').prepend(b);$('#rePerm').onclick=async()=>{const r=await stdSync(true);if(r==='new')toast(t('eUpdated',STATE.edition.n));render();};}};
   showLock();
 })();

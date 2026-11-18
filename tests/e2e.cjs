@@ -1,5 +1,5 @@
 /* Test de bout en bout des deux éditions (Chromium via Playwright).
-   Usage : python3 outils/fabriquer_standard.py
+   Usage : python3 outils/fabriquer.py
            node tests/e2e.cjs chemin/vers/document.docx [dossier_captures] [traductions.json]
    Le document source n'est pas versionné dans le dépôt.
    Les sélecteurs de dossier / fichier sont simulés avec le stockage privé du navigateur (OPFS). */
@@ -49,7 +49,9 @@ async function shot(page, name) { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: 
   page.on('dialog', d => { console.log('     [dialogue] ' + d.message()); d.accept(); });
 
   console.log('Édition admin');
-  await page.goto(base + 'Competitor_Analysis_admin.html');
+  await page.goto(base + 'Competitor_Analysis.html');
+  await page.click('#lkRole [data-r="admin"]');
+  await page.waitForSelector('#lkName');
   await page.fill('#lkName', 'Test Admin');
   await page.fill('#lkPw', 'motdepasse-test-1');
   await page.fill('#lkPw2', 'motdepasse-test-1');
@@ -245,18 +247,23 @@ async function shot(page, name) { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: 
   await page.waitForSelector('text=Mot de passe incorrect.');
   ok(true, 'mauvais mot de passe refusé');
 
-  console.log('Édition standard');
+  console.log('Profil standard (même fichier)');
   const p2 = await ctx.newPage();
   p2.on('pageerror', e => errors.push('std: ' + e.message));
   p2.on('dialog', d => d.accept());
-  await p2.goto(base + 'Competitor_Analysis_standard.html');
+  await p2.goto(base + 'Competitor_Analysis.html');
+  ok(await p2.isVisible('#lkGo:has-text("Déverrouiller")'), 'le dernier profil utilisé (admin) est proposé');
+  await p2.click('#lkRole [data-r="standard"]');
+  await p2.waitForSelector('#lkName');
+  ok(true, 'profil standard : création d\'un mot de passe distinct');
   await p2.fill('#lkName', 'Test Std');
   await p2.fill('#lkPw', 'motdepasse-std-1');
   await p2.fill('#lkPw2', 'motdepasse-std-1');
   await p2.click('#lkGo');
   await p2.waitForSelector('#app:not(.hidden)');
   ok(!(await p2.$('nav.tabs button[data-v="data"]')), 'pas d\'onglet Données en standard');
-  ok(await p2.evaluate(() => typeof docToData === 'undefined' && typeof importDocx === 'undefined'), 'code d\'import absent du standard');
+  ok(!(await p2.$('nav.tabs button[data-v="pub"]')) && await p2.evaluate(() => !IS_ADMIN && ROLE === 'standard'), 'pas d\'onglet Publication, profil standard');
+  ok(!(await p2.evaluate(() => M)), 'le profil standard ne voit pas les données du profil admin');
   await p2.click('nav.tabs button[data-v="edition"]');
   await p2.click('#eCo');
   await p2.fill('#mk1', 'mauvaise-cle-equipe');
@@ -271,6 +278,19 @@ async function shot(page, name) { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: 
   await p2.click('nav.tabs button[data-v="map"]');
   ok(await p2.$$eval('#map .c', els => new Set(els.map(e => e.dataset.m)).size) === 193, 'carte standard');
   await shot(p2, '12-standard-carte');
+  await p2.click('#hdLock');
+  await p2.waitForSelector('#lkGo:has-text("Déverrouiller")');
+  await p2.click('#lkRole [data-r="admin"]');
+  await p2.waitForSelector('#lkRoleHelp:has-text("publication")');
+  await shot(p2, '19-connexion-admin');
+  await p2.fill('#lkPw', 'motdepasse-std-1');
+  await p2.click('#lkGo');
+  await p2.waitForSelector('text=Mot de passe incorrect.');
+  ok(true, 'le mot de passe standard n\'ouvre pas le profil admin');
+  await p2.fill('#lkPw', 'motdepasse-test-1');
+  await p2.click('#lkGo');
+  await p2.waitForSelector('nav.tabs button[data-v="data"]');
+  ok(await p2.evaluate(() => IS_ADMIN && !!M), 'connexion admin dans le même fichier : données admin retrouvées');
 
   ok(errors.length === 0, 'aucune erreur JavaScript' + (errors.length ? ' : ' + errors.join(' | ') : ''));
   ok(requests.length === 0, 'aucune requête réseau externe' + (requests.length ? ' : ' + requests.join(', ') : ''));

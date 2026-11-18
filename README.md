@@ -4,7 +4,7 @@ Outil interne qui présente l'activité des concurrents de BNP Paribas en cash m
 
 Les données viennent d'un document Word produit à partir de sources ouvertes avec l'aide d'un modèle d'IA. **Toutes les informations sont faillibles** : l'outil le rappelle sur chaque écran et recalcule ses chiffres à partir du détail pays par pays.
 
-> **Version 1.1** — 18/11/2026. Interface et contenu du document en français, anglais et néerlandais.
+> **Version 1.2** — 18/11/2026. Un seul fichier, deux profils de connexion (Admin et Standard). Interface et contenu du document en français, anglais et néerlandais.
 
 ## Ce que fait l'outil
 
@@ -16,27 +16,28 @@ Les données viennent d'un document Word produit à partir de sources ouvertes a
 | Concurrents | Fiche par banque : chiffres recalculés, activité, sièges et hubs, couverture par continent dépliable, pays sur place, profil, visuel, sources réglementaires |
 | Tableau | Matrice 193 pays × 10 concurrents, filtrable par continent, concurrent, présence, activité et axe du pays |
 | Méthode et sources | Avertissement de fiabilité, codes de présence, synthèse du document, gouvernance, 72 sources |
+| Connexion | Choix du profil **Standard** ou **Admin** ; chaque profil a son mot de passe et ses données chiffrées |
 | Données *(admin)* | Import du `.docx` avec rapport de contrôle, import des traductions FR / NL, historique, sauvegarde chiffrée |
-
-Partout : **chaque donnée soulignée en pointillé ouvre sa source** (section, ligne et colonne du document, valeur d'origine, sources citées, calcul de l'outil), et **des boutons « Copier »** mettent un résumé prêt à partager dans le presse-papiers (fiche pays, fiche concurrent, un concurrent sur un continent, carte, tableau filtré).
 | Publication *(admin)* | Publication de l'édition chiffrée dans le dossier réseau de l'équipe |
 | Édition *(standard)* | Connexion au dossier de l'équipe ou chargement d'un fichier d'édition |
+
+Partout : **chaque donnée soulignée en pointillé ouvre sa source** (section, ligne et colonne du document, valeur d'origine, sources citées, calcul de l'outil), et **des boutons « Copier »** mettent un résumé prêt à partager dans le presse-papiers (fiche pays, fiche concurrent, un concurrent sur un continent, carte, tableau filtré).
 
 ## Principes (identiques à MarCom CRM)
 
 1. **Aucune sortie réseau** : la politique de sécurité (CSP) l'interdit ; carte, polices et données sont dans le fichier.
 2. **Aucune donnée en clair** : coffre AES-GCM 256 dans le navigateur, mot de passe personnel, verrouillage après 10 minutes ; l'édition partagée est chiffrée avec la clé d'équipe.
-3. **Un seul fichier autonome** par édition, utilisable hors ligne.
+3. **Un seul fichier autonome** pour les deux profils, utilisable hors ligne.
 
 ## Structure du dépôt
 
 | Chemin | Contenu |
 | --- | --- |
-| `src/Competitor_Analysis_admin.html` | **Code source** : l'édition admin, que l'on modifie |
-| `dist/` | Fichiers à livrer : édition admin, édition standard, empreintes `SHA256SUMS.txt` |
-| `outils/fabriquer_standard.py` | Fabrique l'édition standard à partir de l'admin et contrôle les interdits |
+| `src/Competitor_Analysis.html` | **Code source** : l'outil, que l'on modifie |
+| `dist/` | Fichier à livrer `Competitor_Analysis.html` et son empreinte `SHA256SUMS.txt` |
+| `outils/fabriquer.py` | Contrôle les interdits et prépare `dist/` |
 | `outils/carte/` | Construction du fond de carte intégré (Natural Earth, domaine public) |
-| `tests/e2e.cjs` | Test de bout en bout des deux éditions dans Chromium |
+| `tests/e2e.cjs` | Test de bout en bout des deux profils dans Chromium |
 | `docs/` | Dossier technique et journal des versions |
 
 Le document source `.docx` et le paquet de traductions `competitor-analysis-traductions.json` ne sont pas versionnés : ils contiennent les données et sont importés dans l'outil par l'administrateur, qui les y garde chiffrés.
@@ -44,7 +45,7 @@ Le document source `.docx` et le paquet de traductions `competitor-analysis-trad
 ## Fabriquer et tester
 
 ```bash
-python3 outils/fabriquer_standard.py
+python3 outils/fabriquer.py
 ```
 
 ```bash

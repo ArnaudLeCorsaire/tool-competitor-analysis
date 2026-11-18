@@ -52,7 +52,8 @@ sup.ref a:hover{color:var(--green-d);text-decoration:underline}
 
 /* Verrouillage */
 #lock{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#F6F7F8 0%,#EDF3F0 100%)}
-#lock .box{width:min(420px,92vw);padding:28px}
+#lock .box{width:min(440px,92vw);padding:28px}
+#lkRole{display:flex}
 #lock .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
 .logo{width:34px;height:34px;border-radius:9px;background:var(--green);display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px;letter-spacing:.5px;flex:none}
 #lock label{display:block;font-size:12.5px;color:var(--ink2);margin:12px 0 4px}
@@ -233,6 +234,8 @@ b[data-w],span[data-w]:not(.mbadge):not(.ctag):not(.wv),em[data-w]{text-decorati
 <div id="lock">
   <div class="box card">
     <div class="brand"><div class="logo">CA</div><div><b id="lkTitle">Competitor Analysis</b><div class="muted small" id="lkSub"></div></div></div>
+    <div class="seg" id="lkRole" role="tablist" style="width:100%;margin-bottom:6px"><button data-r="standard" style="flex:1"></button><button data-r="admin" style="flex:1"></button></div>
+    <p class="small muted" id="lkRoleHelp" style="margin:4px 0 6px"></p>
     <div id="lkForm"></div>
     <div class="err" id="lkErr"></div>
     <div class="foot">
@@ -270,14 +273,13 @@ b[data-w],span[data-w]:not(.mbadge):not(.ctag):not(.wv),em[data-w]{text-decorati
 /* ===================================================================
    Competitor Analysis — Cash Management & Trade Finance
    Fichier unique, sans dépendance ni appel réseau.
-   EDITION est remplacé par 'standard' par outils/fabriquer_standard.py.
-   Les blocs encadrés par les marqueurs ADMIN (début / fin) sont retirés de l’édition standard.
+   Un seul fichier, deux profils choisis à la connexion : Admin et Standard.
+   Chaque profil a son mot de passe et son coffre chiffré (bases IndexedDB distinctes).
    =================================================================== */
-const EDITION='standard';
-const IS_ADMIN=EDITION==='admin';
-const APP_VERSION='1.1';
-const DBNAME=IS_ADMIN?'ca-tool-admin':'ca-tool-standard';
-const LSP=IS_ADMIN?'ca:':'ca-std:';
+const APP_VERSION='1.2';
+/* Profil courant : 'admin' ou 'standard'. Mêmes noms de bases et de préfixes qu'en 1.0 / 1.1 : les données existantes restent lisibles. */
+let ROLE='standard', IS_ADMIN=false, DBNAME='ca-tool-standard', LSP='ca-std:';
+function setRole(r){ROLE=r==='admin'?'admin':'standard';IS_ADMIN=ROLE==='admin';DBNAME=IS_ADMIN?'ca-tool-admin':'ca-tool-standard';LSP=IS_ADMIN?'ca:':'ca-std:';DBP=null;gSet('role',ROLE);}
 const IDLE_MS=10*60*1000;
 const PBKDF2_IT=310000;
 const TEAM_FILE='ca-equipe.json';
@@ -486,6 +488,9 @@ nl:{
 
 /* ---------- Textes ajoutés en version 1.1 ---------- */
 Object.assign(L.fr,{
+ lkRoleStd:'Standard', lkRoleAdm:'Admin', lockOut:'Verrouiller / changer de profil',
+ lkRoleStdHelp:'Consultation de l’édition publiée par l’équipe. Chaque profil a son propre mot de passe et ses propres données chiffrées.',
+ lkRoleAdmHelp:'Import du document, contrôle et publication pour l’équipe. Mot de passe distinct de celui du profil Standard.',
  'm.LIM-COR':'Corridor restreint (contexte pays)','m.NONE-SANC':'Sanctions internationales',
  'ms.XB-CLR':'Transf.','ms.LIM-COR':'Restr.','ms.NONE-SANC':'Sanct.',
  'g.lim':'Restreint (pays)','g.sanc':'Sanctions internationales',
@@ -517,6 +522,9 @@ Object.assign(L.fr,{
  noTF:'pas de trade finance'
 });
 Object.assign(L.en,{
+ lkRoleStd:'Standard', lkRoleAdm:'Admin', lockOut:'Lock / switch profile',
+ lkRoleStdHelp:'Consult the edition published by the team. Each profile has its own password and its own encrypted data.',
+ lkRoleAdmHelp:'Import the document, check it and publish it for the team. Password separate from the Standard profile.',
  'm.LIM-COR':'Restricted corridor (country context)','m.NONE-SANC':'International sanctions',
  'ms.XB-CLR':'XB','ms.LIM-COR':'Restr.','ms.NONE-SANC':'Sanct.',
  'g.lim':'Restricted (country)','g.sanc':'International sanctions',
@@ -548,6 +556,9 @@ Object.assign(L.en,{
  noTF:'no trade finance'
 });
 Object.assign(L.nl,{
+ lkRoleStd:'Standaard', lkRoleAdm:'Admin', lockOut:'Vergrendelen / profiel wisselen',
+ lkRoleStdHelp:'Raadpleeg de editie die het team heeft gepubliceerd. Elk profiel heeft een eigen wachtwoord en eigen versleutelde gegevens.',
+ lkRoleAdmHelp:'Document importeren, controleren en publiceren voor het team. Ander wachtwoord dan het Standaard-profiel.',
  'm.LIM-COR':'Beperkte corridor (landcontext)','m.NONE-SANC':'Internationale sancties',
  'ms.XB-CLR':'Grens.','ms.LIM-COR':'Bep.','ms.NONE-SANC':'Sanct.',
  'g.lim':'Beperkt (land)','g.sanc':'Internationale sancties',
@@ -613,6 +624,8 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 let LANG='fr';
 function t(k,...a){let s=(L[LANG]&&L[LANG][k]);if(s==null)s=L.fr[k];if(s==null)s=k;a.forEach((v,i)=>{s=s.split('{'+i+'}').join(v);});return s;}
 function lsGet(k){try{return localStorage.getItem(LSP+k);}catch(e){return null;}}
+function gGet(k){try{return localStorage.getItem('ca-g:'+k);}catch(e){return null;}}
+function gSet(k,v){try{localStorage.setItem('ca-g:'+k,v);}catch(e){}}
 function lsSet(k,v){try{localStorage.setItem(LSP+k,v);}catch(e){}}
 function fmtDate(iso){if(!iso)return '';const d=new Date(iso);return d.toLocaleDateString(LANG==='nl'?'nl-BE':LANG==='en'?'en-GB':'fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});}
 function fmtDT(iso){if(!iso)return '';const d=new Date(iso);return d.toLocaleString(LANG==='nl'?'nl-BE':LANG==='en'?'en-GB':'fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
@@ -665,6 +678,8 @@ setInterval(()=>{if(KEY&&Date.now()-LAST_ACT>IDLE_MS)lockApp(true);},15000);
 async function showLock(msg){
   $('#app').classList.add('hidden');$('#lock').classList.remove('hidden');closeDrawer();closeModal();
   $('#lkSub').textContent=t('sub');$('#lkLang').value=LANG;$('#lkReset').textContent=t('lkReset');
+  document.querySelectorAll('#lkRole button').forEach(b=>{b.textContent=t(b.dataset.r==='admin'?'lkRoleAdm':'lkRoleStd');b.classList.toggle('on',b.dataset.r===ROLE);});
+  $('#lkRoleHelp').textContent=t(IS_ADMIN?'lkRoleAdmHelp':'lkRoleStdHelp');
   const v=await kvGet('vault');const f=$('#lkForm');$('#lkErr').textContent=msg||'';
   if(!v){
     f.innerHTML=`<p class="small" style="margin:0 0 4px">${esc(t('lkCreate'))}</p>
@@ -690,9 +705,10 @@ async function showLock(msg){
     $('#lkGo').onclick=go;$('#lkPw').onkeydown=e=>{if(e.key==='Enter')go();};$('#lkPw').focus();
   }
 }
-function lockApp(idle){KEY=null;STATE=null;M=null;SALT=null;$('#main').innerHTML='';showLock(idle?t('lkLocked'):'');}
+$('#lkRole').onclick=e=>{const b=e.target.closest('[data-r]');if(!b||b.dataset.r===ROLE)return;setRole(b.dataset.r);showLock();};
+function lockApp(idle){KEY=null;STATE=null;M=null;SALT=null;if(typeof PENDING!=='undefined')PENDING=null;$('#main').innerHTML='';showLock(idle?t('lkLocked'):'');}
 $('#lkReset').onclick=async()=>{if(!confirm(t('lkResetQ')))return;await kvClear();try{Object.keys(localStorage).filter(k=>k.startsWith(LSP)&&k!==LSP+'lang').forEach(k=>localStorage.removeItem(k));}catch(e){}showLock();};
-$('#lkLang').onchange=e=>{LANG=e.target.value;lsSet('lang',LANG);document.documentElement.lang=LANG;showLock();};
+$('#lkLang').onchange=e=>{LANG=e.target.value;gSet('lang',LANG);document.documentElement.lang=LANG;showLock();};
 
 /* ---------- Modèle (recalculé à partir des données) ---------- */
 function buildModel(){
@@ -787,14 +803,178 @@ function focusOf(c){const s=segEN(c.just);const tf=[...new Set((s.match(FOCUS_TF
 
 function srcTitle(n){const s=M&&M.D.sources[n-1];return s?(s.title+(s.url?' — '+s.url:'')):'';}
 
+/* ---------- Lecture du .docx (zip + XML), sans bibliothèque ---------- */
+async function inflateRaw(data){
+  const s=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  const r=s.getReader();const parts=[];let len=0;
+  for(;;){const {done,value}=await r.read();if(done)break;parts.push(value);len+=value.length;}
+  const out=new Uint8Array(len);let o=0;for(const p of parts){out.set(p,o);o+=p.length;}return out;
+}
+function unzip(buf){
+  const u=new Uint8Array(buf),dv=new DataView(buf);let e=-1;
+  for(let i=u.length-22;i>=Math.max(0,u.length-65557);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break;}}
+  if(e<0)throw new Error('zip');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const files={};
+  for(let k=0;k<n;k++){
+    if(dv.getUint32(p,true)!==0x02014b50)throw new Error('zip-cd');
+    const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lho=dv.getUint32(p+42,true);
+    files[td.decode(u.subarray(p+46,p+46+nl))]={method,csize,lho};p+=46+nl+xl+cl;
+  }
+  return {has:n=>!!files[n],async get(name){const f=files[name];if(!f)return null;const l=f.lho;const nl=dv.getUint16(l+26,true),xl=dv.getUint16(l+28,true);const d=u.subarray(l+30+nl+xl,l+30+nl+xl+f.csize);if(f.method===0)return d.slice();if(f.method!==8)throw new Error('zip-method');return inflateRaw(d);}};
+}
+const WNS='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const ANS='http://schemas.openxmlformats.org/drawingml/2006/main';
+const RNS='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+function kids(el,name){return [...el.children].filter(c=>c.localName===name);}
+function inTextbox(el){for(let p=el.parentNode;p;p=p.parentNode){if(p.localName==='txbxContent')return true;if(p.localName==='p'||p.localName==='body')break;}return false;}
+function parsePara(p,rels){
+  const segs=[];let buf='',sup='';const imgs=[];let url=null;
+  const flushSup=()=>{if(sup){const nums=(sup.match(/\d+/g)||[]).map(Number).filter(n=>n>0&&n<1000);if(nums.length){if(buf){segs.push({t:buf});buf='';}segs.push({r:nums});}else buf+=sup;sup='';}};
+  for(const r of p.getElementsByTagNameNS(WNS,'r')){
+    if(inTextbox(r))continue;
+    const va=r.getElementsByTagNameNS(WNS,'vertAlign')[0];const isSup=va&&(va.getAttributeNS(WNS,'val')||va.getAttribute('w:val'))==='superscript';
+    let txt='';
+    for(const c of r.children){if(c.localName==='t')txt+=c.textContent;else if(c.localName==='tab')txt+=' ';else if(c.localName==='br'||c.localName==='cr')txt+='\n';}
+    for(const b of r.getElementsByTagNameNS(ANS,'blip')){const id=b.getAttributeNS(RNS,'embed')||b.getAttribute('r:embed');if(id&&rels[id])imgs.push(rels[id].target);}
+    const par=r.parentNode;if(par&&par.localName==='hyperlink'&&!url){const id=par.getAttributeNS(RNS,'id')||par.getAttribute('r:id');if(id&&rels[id])url=rels[id].target;}
+    if(isSup&&/^[\d,\s–-]+$/.test(txt)){sup+=txt;continue;}
+    flushSup();buf+=txt;
+  }
+  flushSup();if(buf)segs.push({t:buf});
+  const text=segs.filter(s=>s.t).map(s=>s.t).join('').replace(/\s+/g,' ').trim();
+  const pPr=kids(p,'pPr')[0];const list=!!(pPr&&kids(pPr,'numPr').length);
+  return {type:'p',text,segs:cleanSegs(segs),imgs,url,list};
+}
+function cleanSegs(segs){const out=[];for(const s of segs){if(s.t!=null){const v=s.t.replace(/\s+/g,' ');if(out.length&&out[out.length-1].t!=null)out[out.length-1].t+=v;else out.push({t:v});}else out.push(s);}if(out.length&&out[0].t!=null)out[0].t=out[0].t.replace(/^\s+/,'');if(out.length&&out[out.length-1].t!=null)out[out.length-1].t=out[out.length-1].t.replace(/\s+$/,'');return out.filter(s=>s.r||s.t);}
+function parseTbl(tb,rels){
+  return kids(tb,'tr').map(tr=>kids(tr,'tc').map(tc=>{const ps=kids(tc,'p').map(p=>parsePara(p,rels));const segs=[];ps.forEach((p,i)=>{if(i&&p.segs.length)segs.push({t:' '});segs.push(...p.segs);});const cs=cleanSegs(segs);return {t:ps.map(p=>p.text).filter(Boolean).join(' '),segs:cs,refs:cs.filter(s=>s.r).flatMap(s=>s.r)};}));
+}
+async function readDocx(buf){
+  const z=unzip(buf);
+  const xml=await z.get('word/document.xml');if(!xml)throw new Error('document.xml');
+  const relsX=await z.get('word/_rels/document.xml.rels');const rels={};
+  if(relsX){const rd=new DOMParser().parseFromString(td.decode(relsX),'application/xml');for(const r of rd.getElementsByTagName('Relationship'))rels[r.getAttribute('Id')]={target:r.getAttribute('Target'),ext:r.getAttribute('TargetMode')==='External'};}
+  const doc=new DOMParser().parseFromString(td.decode(xml),'application/xml');
+  const body=doc.getElementsByTagNameNS(WNS,'body')[0];if(!body)throw new Error('body');
+  const blocks=[];
+  for(const el of body.children){if(el.localName==='p')blocks.push(parsePara(el,rels));else if(el.localName==='tbl')blocks.push({type:'tbl',rows:parseTbl(el,rels)});}
+  return {blocks,zip:z};
+}
+async function shrinkImage(bytes){
+  try{const bmp=await createImageBitmap(new Blob([bytes]));const w=Math.min(1000,bmp.width),h=Math.round(bmp.height*w/bmp.width);
+    const cv=document.createElement('canvas');cv.width=w;cv.height=h;const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(bmp,0,0,w,h);
+    return cv.toDataURL('image/jpeg',.82);}catch(e){return null;}
+}
+const CODE_RE=/^(ON-HQ|ON-SUB|ON-BR|EU-PASS|XB-CLR|LIM-COR|NONE-SANC)\b\s*(?:\(([^)]*)\))?/i;
+function parseClaimTotal(s){const m=String(s).match(/(\d+)\D+?(\d+)\D+?(\d+)/);return m?[+m[1],+m[2],+m[3]]:null;}
 
+/* Transforme le document en données de l'outil + rapport de contrôle */
+async function docToData(buf,fileName,onImg){
+  const {blocks,zip}=await readDocx(buf);
+  const rep=[];const add=(lvl,msg)=>rep.push({lvl,msg});
+  const H={synth:/^Executive Synthesis/i,proto:/^Research Architecture/i,matrix:/^Comparative Institutional Matrix/i,deep:/^Granular Institutional/i,carto:/^Global Cartography/i,compil:/^Complete Sovereign Compilation/i,gov:/^Project Governance/i,sources:/^Sources\b/i};
+  const CONT_RE=/^Continent\s+\d+\s*:\s*(.+?)\s*\((\d+)\s+UN Member States/i;
+  let sec='intro',bankSec=null,contSec=null;
+  const out={title:'',synth:[],proto:[],matrixIntro:[],carto:[],compil:[],gov:[],contIntro:{},contStated:{},profiles:{},bankImgs:{},imgs:{},sources:[],tables:{}};
+  for(const b of blocks){
+    if(b.type==='p'){
+      const tx=b.text;
+      if(!out.title&&tx){out.title=tx;continue;}
+      if(tx&&tx.length<200){
+        let hit=null;for(const k in H)if(H[k].test(tx)){hit=k;break;}
+        const cm=tx.match(CONT_RE);
+        if(cm){sec='cont';contSec=normCont(cm[1]);out.contStated[contSec]=+cm[2];out.contIntro[contSec]=[];continue;}
+        if(hit){sec=hit;bankSec=null;continue;}
+        const nm=tx.match(/^(\d+)\.\s+(.{3,100})$/);
+        if(sec==='deep'&&nm){bankSec=bankIdOf(nm[2])||('x'+nm[1]);out.profiles[bankSec]={title:nm[2],paras:[]};continue;}
+        if(sec==='gov'&&nm){out.gov.push({h:tx});continue;}
+      }
+      for(const im of b.imgs){const key=sec==='deep'&&bankSec?('bank:'+bankSec):sec;(out.imgs[key]=out.imgs[key]||[]).push(im);}
+      if(!tx)continue;
+      if(sec==='sources'){const um=tx.match(/https?:\/\/\S+/);const url=b.url||(um?um[0]:null);let title=tx.replace(url||'@@','').replace(/[,\s]+$/,'').trim()||tx;if(/unknown_url/i.test(title)&&!url)title='unknown_url';out.sources.push({title,url:url&&/^https?:/i.test(url)?url:null});continue;}
+      const para={segs:b.segs};
+      if(sec==='synth')out.synth.push(para);else if(sec==='proto')out.proto.push(para);else if(sec==='matrix')out.matrixIntro.push(para);
+      else if(sec==='deep'&&bankSec)out.profiles[bankSec].paras.push(para);else if(sec==='carto')out.carto.push(para);
+      else if(sec==='compil')out.compil.push(para);else if(sec==='cont'&&contSec)out.contIntro[contSec].push(para);else if(sec==='gov')out.gov.push(para);
+    }else{
+      const hd=b.rows[0]?b.rows[0].map(c=>c.t):[];const h0=(hd[0]||'').toLowerCase();
+      if(h0==='#')(out.tables.countries=out.tables.countries||[]).push(b.rows);
+      else if(h0.startsWith('institution (parent')||(h0.startsWith('institution')&&/division/i.test(hd[1]||'')))out.tables.matrix=b.rows;
+      else if(h0==='institution'&&/africa/i.test(hd[1]||''))out.tables.coverage=b.rows;
+      else if(h0.startsWith('classification code'))out.tables.codes=b.rows;
+      else if(h0==='institution'&&/filing/i.test(hd[1]||''))out.tables.filings=b.rows;
+    }
+  }
+  if(!out.tables.countries)throw Object.assign(new Error('fatal'),{fatal:true});
+
+  /* Concurrents : ordre de la base pays × concurrents */
+  const ch=out.tables.countries[0][0].map(c=>c.t);
+  const bankCols=[];const unk=[];
+  ch.forEach((h,i)=>{if(i<3||i===ch.length-1)return;const id=bankIdOf(h);if(id)bankCols.push({i,id,head:h});else unk.push(h);});
+  const banks=bankCols.map(c=>({id:c.id,name:c.head,col:c.head,entities:'',division:null,origin:null,network:null,perf:null,pos:null,claim:null,claimCont:null,profile:[],img:null,filing:null}));
+  const B=Object.fromEntries(banks.map(b=>[b.id,b]));
+  if(out.tables.matrix)for(const r of out.tables.matrix.slice(1)){const id=bankIdOf(r[0].t);const b=B[id];if(!b)continue;
+    const m=r[0].t.match(/^(.*?)\s*\((.*)\)\s*$/);b.name=m?m[1]:r[0].t;b.entities=m?m[2]:'';
+    b.division=r[1]&&r[1].segs;b.origin=r[2]&&r[2].segs;b.network=r[3]&&r[3].segs;b.perf=r[4]&&r[4].segs;b.pos=r[5]&&r[5].segs;}
+  if(out.tables.coverage)for(const r of out.tables.coverage.slice(1)){const b=B[bankIdOf(r[0].t)];if(!b)continue;const last=r[r.length-1];const txt=last.segs.filter(s=>s.t).map(s=>s.t).join('');b.claim=parseClaimTotal(txt);}
+  if(out.tables.filings)for(const r of out.tables.filings.slice(1)){const b=B[bankIdOf(r[0].t)];if(!b)continue;b.filing={doc:r[1]&&r[1].segs,auth:r[2]&&r[2].segs,metric:r[3]&&r[3].segs};}
+  for(const id in out.profiles){if(B[id])B[id].profile=out.profiles[id].paras;}
+
+  /* Pays */
+  const countries=[];const badCodes=[];const seen=new Map();const dups=[];
+  for(const tb of out.tables.countries)for(const r of tb.slice(1)){
+    if(!r[1]||!r[1].t)continue;
+    const n=r[1].t.trim();const cont=normCont(r[2]?r[2].t:'');
+    const cells=bankCols.map(bc=>{const raw=(r[bc.i]&&r[bc.i].t||'').trim();const m=raw.match(CODE_RE);if(!m){badCodes.push(n+' / '+bc.id+' : '+(raw||'∅'));return {code:'?',era:'',raw};}return {code:m[1].toUpperCase(),era:(m[2]||'').trim()};});
+    const jc=r[r.length-1];
+    if(seen.has(n))dups.push(n);seen.set(n,1);
+    countries.push({n,no:parseInt(r[0].t,10)||0,cont,cells,just:jc?jc.segs:[]});
+  }
+  /* Codes */
+  const codes=(out.tables.codes||[]).slice(1).map(r=>({code:(r[0].t.match(/^[A-Z-]+/)||[r[0].t])[0],raw:r[0].t,mode:r[1]&&r[1].segs,def:r[2]&&r[2].segs,era:r[3]&&r[3].segs}));
+
+  /* Visuels */
+  let nImg=0;
+  for(const key in out.imgs){const tg=out.imgs[key][0];const path=tg.startsWith('/')?tg.slice(1):('word/'+tg.replace(/^\.\//,''));const bytes=await zip.get(path);if(!bytes)continue;
+    if(onImg)onImg(++nImg);const data=await shrinkImage(bytes);if(!data)continue;
+    if(key.startsWith('bank:')){const b=B[key.slice(5)];if(b){b.img=data;}}else out.imgs[key]=data;}
+  const extraImgs={synth:typeof out.imgs.synth==='string'?out.imgs.synth:null,carto:typeof out.imgs.carto==='string'?out.imgs.carto:null};
+
+  const data={v:1,title:out.title,banks,countries,codes,sources:out.sources,synth:out.synth,proto:out.proto,matrixIntro:out.matrixIntro,carto:out.carto,compil:out.compil,gov:out.gov,contIntro:out.contIntro,contStated:out.contStated,imgs:extraImgs};
+
+  /* Rapport de contrôle */
+  if(!countries.length)throw Object.assign(new Error('fatal'),{fatal:true});
+  add(banks.length?'ok':'err',t('ckBanks',banks.length));
+  if(unk.length)add('err',t('ckBanksBad',unk.join(', ')));
+  add('ok',t('ckCountries',countries.length));
+  const cc={};countries.forEach(c=>cc[c.cont]=(cc[c.cont]||0)+1);
+  for(const k of Object.keys(cc).concat(Object.keys(out.contStated).filter(k=>!cc[k]))){const st=out.contStated[k];add(st===cc[k]?'ok':'warn',t('ckCont',contName(k)||k,cc[k]||0,st??'?'));}
+  if(dups.length)add('warn',t('ckDup',dups.join(', ')));
+  const ncell=countries.length*banks.length;add(badCodes.length?'warn':'ok',t('ckCodes',ncell-badCodes.length));
+  if(badCodes.length)add('warn',t('ckCodesBad',badCodes.length,badCodes.slice(0,8).join(' ; ')+(badCodes.length>8?' …':'')));
+  const noShape=MAP?countries.filter(c=>!MAP.c.some(s=>s.n===c.n)).map(c=>c.n):[];
+  add(noShape.length?'warn':'ok',noShape.length?t('ckMapBad',noShape.join(', ')):t('ckMap'));
+  add('ok',t('ckSources',out.sources.length));
+  const allRefs=new Set();const scan=x=>{if(Array.isArray(x))x.forEach(scan);else if(x&&typeof x==='object'){if(x.r)x.r.forEach(n=>allRefs.add(n));else Object.values(x).forEach(scan);}};
+  scan([data.synth,data.proto,data.carto,data.gov,data.contIntro,banks,countries.map(c=>c.just)]);
+  const miss=[...allRefs].filter(n=>n>out.sources.length).sort((a,b)=>a-b);if(miss.length)add('warn',t('ckRefs',miss.join(', ')));
+  add('ok',t('ckProfiles',banks.filter(b=>b.profile.length).length));
+  add('ok',t('ckImgs',banks.filter(b=>b.img).length+(extraImgs.synth?1:0)+(extraImgs.carto?1:0)));
+  /* Écarts synthèse / détail */
+  const recalc=banks.map((b,k)=>{const r=[0,0,0];countries.forEach(c=>{const g=MODE_GROUP[c.cells[k].code];if(g==='onshore'||g==='pass')r[0]++;else if(g==='xb')r[1]++;else if(g)r[2]++;});return r;});
+  let ndiff=0;banks.forEach((b,k)=>{b.recalc=recalc[k];if(b.claim&&b.claim.join()!==recalc[k].join()){ndiff++;add('warn',t('ckClaim',b.name,...b.claim,...recalc[k]));}});
+  if(!ndiff&&banks.some(b=>b.claim))add('ok',t('ckClaimOk'));
+  data.ndiff=ndiff;
+  return {data,rep,fatal:false};
+}
+function normCont(s){s=String(s||'').trim().toLowerCase();if(s.startsWith('africa'))return 'Africa';if(s.startsWith('asia'))return 'Asia';if(s.startsWith('europe'))return 'Europe';if(s.startsWith('north'))return 'North America';if(s.startsWith('oceania'))return 'Oceania';if(s.startsWith('south'))return 'South America';return s?s.charAt(0).toUpperCase()+s.slice(1):'?';}
 
 /* ---------- Coquille de l'application ---------- */
 let VIEW='map';
 const UI={mapLayer:'all',mapAct:'',sites:true,cont:'',q:'',tb:{q:'',cont:'',bank:'',mode:'',act:'',focus:'',sort:'name'},bankOpen:null,contOpen:null};
 function tabsDef(){
   const t0=[['map','tMap'],['countries','tCountries'],['banks','tBanks'],['table','tTable'],['method','tMethod']];
-  
+  if(IS_ADMIN)return t0.concat([['sep'],['data','tData'],['pub','tPub']]);
   return t0.concat([['sep'],['edition','tEdition']]);
 }
 function enterApp(){
@@ -806,7 +986,7 @@ function enterApp(){
 function render(){
   document.documentElement.lang=LANG;hideWhy();
   $('#hdSub').textContent=t('sub');$('#hdEd').textContent=IS_ADMIN?t('edAdmin'):t('edStd');$('#hdEd').className='badge'+(IS_ADMIN?'':' std');
-  $('#hdLang').value=LANG;$('#hdLock').textContent=t('lock');$('#disc').textContent=t('disc')+' '+t('wHint');
+  $('#hdLang').value=LANG;$('#hdLock').textContent=t('lockOut');$('#disc').textContent=t('disc')+' '+t('wHint');
   const d=STATE&&STATE.data;
   $('#hdData').textContent=d?(IS_ADMIN?t('dataOf',d.ver||1,fmtDate(d.importedAt)):(STATE.edition?t('dataOf',STATE.edition.n,fmtDate(STATE.edition.date)):'')):'';
   $('#tabs').innerHTML=tabsDef().map(x=>x[0]==='sep'?'<span class="sep"></span>':`<button data-v="${x[0]}" class="${VIEW===x[0]?'on':''}">${esc(t(x[1]))}</button>`).join('');
@@ -814,7 +994,7 @@ function render(){
   const needData=['map','countries','banks','table','method'].includes(VIEW);
   if(needData&&!M){main.innerHTML=`<div class="empty card"><h2>${esc(t('noData'))}</h2><p>${esc(IS_ADMIN?t('noDataAdmin'):t('noDataStd'))}</p><button class="btn primary" data-go="${IS_ADMIN?'data':'edition'}">${esc(IS_ADMIN?t('goData'):t('goEdition'))}</button></div>`;return;}
   const V={map:viewMap,countries:viewCountries,banks:viewBanks,table:viewTable,method:viewMethod,edition:viewEdition};
-  
+  V.data=viewData;V.pub=viewPub;
   main.onclick=null;
   (V[VIEW]||viewMap)(main);
 }
@@ -822,7 +1002,7 @@ function go(v){VIEW=v;lsSet('view',v);window.scrollTo(0,0);render();}
 $('#tabs').onclick=e=>{const b=e.target.closest('button[data-v]');if(b){if(b.dataset.v==='banks')UI.bankOpen=null;go(b.dataset.v);}};
 $('#main').addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)go(g.dataset.go);});
 $('#hdLock').onclick=()=>lockApp(false);
-$('#hdLang').onchange=e=>{LANG=e.target.value;lsSet('lang',LANG);const dc=DRAWER_C;render();if(dc!=null)openCountry(dc);};
+$('#hdLang').onchange=e=>{LANG=e.target.value;gSet('lang',LANG);const dc=DRAWER_C;render();if(dc!=null)openCountry(dc);};
 /* Renvois aux sources, sources des données (data-w), copies (data-copy) : capturés avant les autres clics */
 document.addEventListener('click',e=>{
   const a=e.target.closest('a[data-src]');
@@ -1191,7 +1371,108 @@ async function writeFile(dir,name,text){const fh=await dir.getFileHandle(name,{c
 async function folderHandle(ask){const h=await kvGet('folder');if(!h)return null;let p=await h.queryPermission({mode:IS_ADMIN?'readwrite':'read'});if(p!=='granted'&&ask)p=await h.requestPermission({mode:IS_ADMIN?'readwrite':'read'});return p==='granted'?h:{needPerm:true,h};}
 async function verifyTeam(team,pw){const k=await teamKeyFrom(pw,team.salt);try{const w=await dec(k,team.witness);return w==='ca-team-ok'?k:null;}catch(e){return null;}}
 
+/* ---------- Admin : données ---------- */
+let PENDING=null;
+function viewData(main){
+  const d=STATE.data;
+  main.innerHTML=`<div class="card pad" style="margin-bottom:14px"><h3 style="margin-bottom:8px">${esc(t('dCur'))}</h3>
+    ${d?`<p style="margin:0 0 4px"><b>${esc(d.file||'')}</b> — ${esc(t('dataOf',d.ver,fmtDT(d.importedAt)))}</p><p class="small muted" style="margin:0;word-break:break-all">${esc(d.title||'')}<br>SHA-256 : ${esc(d.sha||'')}</p>`:`<p class="muted" style="margin:0">${esc(t('dNone'))}</p>`}
+    <div class="row" style="margin-top:12px"><button class="btn primary" id="dImp">${esc(t('dImport'))}</button>${d?`<button class="btn" id="dTr">${esc(t('dTr'))}</button>`:''}<span class="muted small" id="dMsg"></span></div>
+    ${d?`<p class="small muted" style="margin:8px 0 0" id="dTrSt">${esc(d.tr?t('dTrState',allTrKeys(d).filter(k=>d.tr[k]).length,allTrKeys(d).length):t('dTrNone'))}</p>`:''}
+    <div id="dRep"></div></div>
+  <div class="card pad" style="margin-bottom:14px"><h3 style="margin-bottom:8px">${esc(t('dHist'))}</h3>
+    ${STATE.history.length?`<table class="t"><tr><th>${esc(t('dhVer'))}</th><th>${esc(t('dhDate'))}</th><th>${esc(t('dhFile'))}</th><th>${esc(t('dhBy'))}</th><th>${esc(t('dhCounts'))}</th></tr>${STATE.history.slice().reverse().map(h=>`<tr><td>${h.ver}</td><td>${esc(fmtDT(h.date))}</td><td>${esc(h.file)}<div class="small muted" style="word-break:break-all">${esc((h.sha||'').slice(0,16))}…</div></td><td>${esc(h.by||'')}</td><td class="small">${h.countries} × ${h.banks}${h.warn?` · ⚠ ${h.warn}`:''}</td></tr>`).join('')}</table>`:'<p class="muted" style="margin:0">—</p>'}</div>
+  <div class="card pad"><h3 style="margin-bottom:6px">${esc(t('dBackupT'))}</h3><p class="small muted" style="margin:0 0 10px">${esc(t('dBackupD'))}</p>
+    <div class="row"><button class="btn" id="dBk">${esc(t('dBackup'))}</button><button class="btn" id="dRs">${esc(t('dRestore'))}</button></div></div>`;
+  $('#dImp').onclick=importDocx;if($('#dTr'))$('#dTr').onclick=importTr;$('#dBk').onclick=backup;$('#dRs').onclick=restore;
+  if(PENDING)showReport();
+}
+/* Paquet de traductions FR / NL du contenu du document : {kind:'ca-traductions', t:{clé:{fr,nl}}} */
+async function importTr(){
+  const f=await pickFile('.json');if(!f)return;let o;try{o=JSON.parse(await f.text());}catch(e){return alert(t('dTrBad'));}
+  if(!o||o.kind!=='ca-traductions'||!o.t||typeof o.t!=='object')return alert(t('dTrBad'));
+  const keys=allTrKeys(STATE.data);const tr={};let n=0;
+  for(const k of keys){const e=o.t[k];if(e&&(e.fr||e.nl)){tr[k]={fr:String(e.fr||''),nl:String(e.nl||'')};n++;}}
+  STATE.data.tr=tr;STATE.data.trFile=f.name;await saveVault();buildModel();toast(t('dTrOk',n,keys.length));render();
+}
+async function importDocx(){
+  const f=await pickFile('.docx');if(!f)return;
+  $('#dMsg').textContent=t('dImporting');
+  try{const buf=await f.arrayBuffer();const sha=await sha256hex(buf);
+    const res=await docToData(buf,f.name,n=>{$('#dMsg').textContent=t('dImporting')+' ('+n+')';});
+    PENDING={...res,file:f.name,sha};$('#dMsg').textContent='';showReport();}
+  catch(e){$('#dMsg').textContent='';PENDING=null;$('#dRep').innerHTML=`<div class="callout err" style="margin-top:12px">${esc(e.fatal?t('ckFatal'):t('err',e.message))}</div>`;}
+}
+function showReport(){
+  const P=PENDING;const nerr=P.rep.filter(r=>r.lvl==='err').length,nw=P.rep.filter(r=>r.lvl==='warn').length;
+  $('#dRep').innerHTML=`<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px"><h3>${esc(t('dReport'))} — ${esc(P.file)}</h3>
+   <div class="checks">${P.rep.map(r=>`<div class="ck ${r.lvl}"><i>${r.lvl==='ok'?'✓':r.lvl==='warn'?'!':'✕'}</i><span>${esc(r.msg)}</span></div>`).join('')}</div>
+   <div class="row"><button class="btn primary" id="dSv" ${nerr?'disabled':''}>${esc(t('dSave'))}</button><button class="btn" id="dCx">${esc(t('dCancel'))}</button></div></div>`;
+  $('#dCx').onclick=()=>{PENDING=null;render();};
+  $('#dSv').onclick=async()=>{const ver=(STATE.data&&STATE.data.ver||0)+1;const now=new Date().toISOString();
+    const oldTr=STATE.data&&STATE.data.tr;
+    STATE.data={...P.data,file:P.file,sha:P.sha,importedAt:now,importedBy:STATE.author,ver};
+    if(oldTr){const tr={};allTrKeys(STATE.data).forEach(k=>{if(oldTr[k])tr[k]=oldTr[k];});STATE.data.tr=tr;}
+    STATE.history.push({ver,date:now,file:P.file,sha:P.sha,by:STATE.author,countries:P.data.countries.length,banks:P.data.banks.length,warn:nw});
+    await saveVault();PENDING=null;buildModel();toast(t('dSaved',ver));render();};
+}
+async function backup(){
+  const v=await kvGet('vault');const d=new Date().toISOString().slice(0,10);
+  await saveAs(`competitor-analysis-sauvegarde-${d}.json`,JSON.stringify({kind:'ca-backup',edition:ROLE,date:new Date().toISOString(),vault:v}),'Sauvegarde chiffrée','.json');
+}
+async function restore(){
+  const f=await pickFile('.json');if(!f)return;let o;try{o=JSON.parse(await f.text());}catch(e){return alert(t('dRestoreBad'));}
+  if(!o||o.kind!=='ca-backup'||!o.vault)return alert(t('dRestoreBad'));
+  const pw=await askPw(t('dRestore'));if(!pw)return;
+  try{const salt=fromB64(o.vault.salt);const k=await deriveKey(pw,salt);const st=await dec(k,o.vault);KEY=k;SALT=salt;STATE=st;await saveVault();buildModel();toast(t('dRestored'));render();}
+  catch(e){alert(t('dRestoreBad'));}
+}
 
+/* ---------- Admin : publication ---------- */
+async function viewPub(main){
+  main.innerHTML=`<div class="card pad" style="margin-bottom:14px"><h3 style="margin-bottom:6px">${esc(t('pTitle'))}</h3><p class="small muted" style="margin:0 0 12px">${esc(t('pIntro'))}</p>
+    <h3 style="font-size:13.5px;margin-bottom:6px">${esc(t('pFolder'))}</h3><p id="pSt" class="small" style="margin:0 0 10px">…</p>
+    <div class="row"><button class="btn" id="pCr">${esc(t('pCreate'))}</button><button class="btn" id="pCo">${esc(t('pConnect'))}</button><button class="btn hidden" id="pRe">${esc(t('pReconnect'))}</button></div>
+    <div class="row" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)"><button class="btn primary" id="pPu">${esc(t('pPublish'))}</button><button class="btn" id="pEx">${esc(t('pExport'))}</button></div>
+    <p class="small muted" style="margin:8px 0 0">${esc(t('pExportKey'))}</p></div>`;
+  $('#pCr').onclick=()=>teamFolder(true);$('#pCo').onclick=()=>teamFolder(false);$('#pRe').onclick=async()=>{await folderHandle(true);viewPub(main);};
+  $('#pPu').onclick=publish;$('#pEx').onclick=exportEdition;
+  const st=$('#pSt');const h=await folderHandle(false);
+  if(!h||!STATE.team){st.textContent=t('pNoFolder');return;}
+  if(h.needPerm){st.textContent=t('pFolderOk',h.h.name);$('#pRe').classList.remove('hidden');return;}
+  const ed=await readJSONFile(h,EDITION_FILE);
+  st.innerHTML=esc(t('pFolderOk',h.name))+'<br>'+esc(ed?t('pLast',ed.n,fmtDT(ed.date),ed.author||'—'):t('pNone'));
+}
+async function teamFolder(create){
+  if(!window.showDirectoryPicker)return alert(t('noPicker'));
+  let dir;try{dir=await window.showDirectoryPicker({mode:'readwrite',id:'ca-team'});}catch(e){return;}
+  const team=await readJSONFile(dir,TEAM_FILE);
+  if(create){if(team)return alert(t('pExists'));const pw=await askKey(t('pCreate'),true);if(!pw)return;
+    const salt=rand(16);const k=await deriveKey(pw,salt);const witness=await enc(k,'ca-team-ok');
+    await writeFile(dir,TEAM_FILE,JSON.stringify({v:1,kind:'ca-team',salt:toB64(salt),witness,created:new Date().toISOString(),by:STATE.author},null,1));
+    STATE.team={pw,salt:toB64(salt)};
+  }else{if(!team)return alert(t('pMissing',TEAM_FILE));const pw=await askKey(t('pConnect'),false);if(!pw)return;
+    if(!(await verifyTeam(team,pw)))return alert(t('pKeyBad'));STATE.team={pw,salt:team.salt};}
+  await kvSet('folder',dir);await saveVault();toast(t('saved'));render();
+}
+async function editionPayload(n){
+  const k=await teamKeyFrom(STATE.team.pw,STATE.team.salt);const box=await enc(k,STATE.data);
+  return {v:1,kind:'ca-edition',n,date:new Date().toISOString(),author:STATE.author,salt:STATE.team.salt,counts:{countries:STATE.data.countries.length,banks:STATE.data.banks.length,dataVer:STATE.data.ver},iv:box.iv,ct:box.ct};
+}
+async function publish(){
+  if(!STATE.data)return alert(t('pNeedData'));if(!STATE.team)return alert(t('pNeedTeam'));
+  const h=await folderHandle(true);if(!h||h.needPerm)return alert(t('pNeedTeam'));
+  const cur=await readJSONFile(h,EDITION_FILE);const mine=STATE.pub&&STATE.pub.n||0;
+  if(cur&&cur.n>mine&&!confirm(t('pOverwrite',cur.n,fmtDT(cur.date))))return;
+  const n=Math.max(mine,cur?cur.n:0)+1;const ed=await editionPayload(n);
+  await writeFile(h,EDITION_FILE,JSON.stringify(ed));STATE.pub={n,date:ed.date};await saveVault();toast(t('pPublished',n));render();
+}
+async function exportEdition(){
+  if(!STATE.data)return alert(t('pNeedData'));
+  if(!STATE.team){const pw=await askKey(t('pExport'),true);if(!pw)return;STATE.team={pw,salt:toB64(rand(16))};await saveVault();}
+  const n=(STATE.pub&&STATE.pub.n||0)+1;const ed=await editionPayload(n);
+  if(await saveAs(`competitor-analysis-edition-${n}.cae`,JSON.stringify(ed),'Édition chiffrée','.cae')){STATE.pub={n,date:ed.date};await saveVault();toast(t('pPublished',n));}
+}
 
 /* ---------- Standard : édition de l'équipe ---------- */
 async function applyEdition(ed,pw){
@@ -1206,7 +1487,7 @@ async function stdSync(ask){
   try{await applyEdition(ed,STATE.team.pw);return 'new';}catch(e){return 'bad';}
 }
 async function stdAutoSync(){const r=await stdSync(false);if(r==='new'){toast(t('eUpdated',STATE.edition.n));render();}else if(r==='perm'){render();}}
-if(!IS_ADMIN){setInterval(()=>{if(KEY)stdAutoSync();},5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&KEY)stdAutoSync();});}
+setInterval(()=>{if(KEY&&!IS_ADMIN)stdAutoSync();},5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&KEY&&!IS_ADMIN)stdAutoSync();});
 async function viewEdition(main){
   const e=STATE.edition;
   main.innerHTML=`<div class="card pad"><h3 style="margin-bottom:6px">${esc(t('eTitle'))}</h3><p class="small muted" style="margin:0 0 12px">${esc(t('eIntro'))}</p>
@@ -1229,7 +1510,7 @@ async function viewEdition(main){
 
 /* ---------- Démarrage ---------- */
 (function(){
-  const l=lsGet('lang');LANG=(l&&L[l])?l:((navigator.language||'fr').slice(0,2)in L?(navigator.language||'fr').slice(0,2):'fr');
+  setRole(gGet('role')||'standard');const l=gGet('lang')||lsGet('lang');LANG=(l&&L[l])?l:((navigator.language||'fr').slice(0,2)in L?(navigator.language||'fr').slice(0,2):'fr');
   const r0=render;render=function(){r0();if(!IS_ADMIN&&UI.needPerm&&KEY){const b=document.createElement('div');b.className='callout warn row';b.style.marginBottom='12px';b.innerHTML=`<span class="grow">${esc(t('eNeedPerm'))}</span><button class="btn sm" id="rePerm">${esc(t('pReconnect'))}</button>`;$('#main').prepend(b);$('#rePerm').onclick=async()=>{const r=await stdSync(true);if(r==='new')toast(t('eUpdated',STATE.edition.n));render();};}};
   showLock();
 })();
