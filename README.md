@@ -1,30 +1,57 @@
-# Competitor Analysis Tool
+# Competitor Analysis — Cash Management & Trade Finance
 
-Outil interne d'analyse de la concurrence, destiné à être utilisé sur le système interne de la banque.
-Il suit les mêmes principes que MarCom CRM : un fichier HTML autonome, sans dépendance externe, qui s'ouvre dans le navigateur.
+Outil interne qui présente l'activité des concurrents de BNP Paribas en cash management et trade finance dans les 193 États membres de l'ONU : une carte, des fiches pays, des fiches concurrents, un tableau filtrable et les sources.
 
-> **Statut :** initialisation. Le cahier des charges reste à intégrer.
+Les données viennent d'un document Word produit à partir de sources ouvertes avec l'aide d'un modèle d'IA. **Toutes les informations sont faillibles** : l'outil le rappelle sur chaque écran et recalcule ses chiffres à partir du détail pays par pays.
+
+> **Version 1.0** — 18/11/2026. Interface en français, anglais et néerlandais.
+
+## Ce que fait l'outil
+
+| Écran | Contenu |
+| --- | --- |
+| Carte | Monde coloré par concurrent (une couleur par banque) ou vue d'ensemble du nombre de concurrents sur place ; zoom par continent |
+| Pays | Recherche dans les trois langues, filtre par continent, barre de présence des 10 concurrents par pays |
+| Fiche pays | Mode de présence et date d'implantation de chaque concurrent, justification et sources |
+| Concurrents | Fiche par banque : chiffres recalculés, couverture par continent, pays sur place, profil, visuel, sources réglementaires |
+| Tableau | Matrice 193 pays × 10 concurrents, filtrable par continent, concurrent et type de présence |
+| Méthode et sources | Avertissement de fiabilité, codes de présence, synthèse du document, gouvernance, 72 sources |
+| Données *(admin)* | Import du `.docx` avec rapport de contrôle, historique, sauvegarde chiffrée |
+| Publication *(admin)* | Publication de l'édition chiffrée dans le dossier réseau de l'équipe |
+| Édition *(standard)* | Connexion au dossier de l'équipe ou chargement d'un fichier d'édition |
+
+## Principes (identiques à MarCom CRM)
+
+1. **Aucune sortie réseau** : la politique de sécurité (CSP) l'interdit ; carte, polices et données sont dans le fichier.
+2. **Aucune donnée en clair** : coffre AES-GCM 256 dans le navigateur, mot de passe personnel, verrouillage après 10 minutes ; l'édition partagée est chiffrée avec la clé d'équipe.
+3. **Un seul fichier autonome** par édition, utilisable hors ligne.
 
 ## Structure du dépôt
 
 | Chemin | Contenu |
 | --- | --- |
-| `src/` | Code source de l'outil (fichier(s) HTML livrés) |
-| `docs/dossier-technique.md` | Dossier technique : architecture, sécurité, stockage, hébergement, modèle de données, maintenance |
-| `docs/journal-des-versions.md` | Journal des versions, le plus récent en premier |
+| `src/Competitor_Analysis_admin.html` | **Code source** : l'édition admin, que l'on modifie |
+| `dist/` | Fichiers à livrer : édition admin, édition standard, empreintes `SHA256SUMS.txt` |
+| `outils/fabriquer_standard.py` | Fabrique l'édition standard à partir de l'admin et contrôle les interdits |
+| `outils/carte/` | Construction du fond de carte intégré (Natural Earth, domaine public) |
+| `tests/e2e.cjs` | Test de bout en bout des deux éditions dans Chromium |
+| `docs/` | Dossier technique et journal des versions |
 
-## Principes
+Le document source `.docx` n'est pas versionné : il est importé dans l'outil par l'administrateur.
 
-- **Fichier unique et autonome** : HTML, CSS et JavaScript dans le même fichier, sans CDN, sans appel réseau.
-- **Données locales** : rien ne quitte le poste de l'utilisateur, sauf export explicite.
-- **Compatible avec l'environnement de la banque** : navigateur d'entreprise, politique de sécurité (CSP) stricte, pas d'installation.
+## Fabriquer et tester
 
-## Utilisation
+```bash
+python3 outils/fabriquer_standard.py
+```
 
-À compléter une fois la première version livrée.
+```bash
+node tests/e2e.cjs chemin/vers/Activites_Mondiales_de_Cash_Management.docx
+```
+
+Le test demande Node.js et Playwright avec Chromium.
 
 ## Documentation
 
-La documentation est tenue à jour à chaque version :
 - [Dossier technique](docs/dossier-technique.md)
 - [Journal des versions](docs/journal-des-versions.md)

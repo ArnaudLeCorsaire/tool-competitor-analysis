@@ -2,3 +2,8 @@
 Thumbs.db
 *.tmp
 __pycache__/
+node_modules/
+package-lock.json
+outils/carte/carte.json
+# Le document source n est pas versionne
+*.docx
