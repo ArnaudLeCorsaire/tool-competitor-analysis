@@ -1,6 +1,6 @@
 # Competitor Analysis — dossier technique
 
-*Dernière mise à jour : 18/11/2026 — version 1.3*
+*Dernière mise à jour : 23/11/2026 — version 1.4*
 
 ## En bref
 
@@ -153,7 +153,9 @@ La capacité de chaque banque vient de son profil : une phrase « does not opera
 
 **Résumés à copier** (`bankSummary`, `countrySummary`, `mapSummary`, `tableSummary`) : boutons « Copier » sur la fiche pays, la fiche concurrent, chaque continent d'une fiche concurrent, la carte et le tableau filtré. Le résumé est copié en texte et en HTML (collage mis en forme dans Outlook ou Teams), avec la source du document, la date des données et l'avertissement de fiabilité.
 
-**Traduction du contenu du document** : le document est en anglais. Un paquet de traductions FR / NL (`competitor-analysis-traductions.json`, 326 textes) s'importe dans l'onglet Données après le document ; il est rangé chiffré avec les données et publié avec l'édition. La clé de chaque texte est le texte anglais avec ses renvois écrits ⟦n⟧ (`segKey`). Un texte sans traduction s'affiche en anglais avec la marque « EN ». Lors d'un nouvel import, les traductions des textes inchangés sont conservées ; les textes nouveaux ou modifiés demandent un paquet mis à jour.
+**Traduction du contenu du document (v1.4)** : le document est en anglais ; ses 398 textes affichés (profils, matrice, justifications des 193 pays, codes, synthèse, gouvernance, textes par continent, titre du document, titres des 72 sources) sont traduits en français et en néerlandais **automatiquement à l'import**, sans étape supplémentaire. Les traductions sont intégrées au fichier sous forme chiffrée (`TRPACK`) : chaque entrée est repérée par l'empreinte SHA-256 de son texte anglais normalisé et chiffrée en AES-GCM 256 avec une clé dérivée de ce même texte (`trNorm`, `autoTranslate`). Sans le document, le fichier ne révèle aucune traduction. La normalisation (renvois retirés, apostrophes, guillemets, tirets, espaces, minuscules) fait retrouver les traductions même si le document a été réenregistré dans Word. Les renvois aux sources viennent toujours du document (`fitRefs`). Les traductions appliquées sont rangées chiffrées avec les données et publiées avec l'édition. Dans la source de chaque donnée, l'original anglais reste consultable, replié par défaut. Un texte sans traduction s'afficherait en anglais avec la marque « EN ». Restent en anglais par nature : les noms propres (banques, divisions, documents officiels) et le texte inclus dans les visuels du document, qui sont des images.
+
+**Mettre à jour les traductions** : pour un nouveau document, les textes nouveaux ou modifiés sont traduits dans le paquet `competitor-analysis-traductions.json` (non versionné), puis `python3 outils/traductions/integrer_traductions.py <paquet>` les chiffre et les intègre dans `src/Competitor_Analysis.html`. Un paquet complémentaire peut aussi être importé dans l'onglet Données. `node tests/audit_traduction.cjs <document.docx> fr` parcourt tous les écrans et signale tout texte anglais visible.
 
 **Contrôle d'import** (`docToData`) : concurrents reconnus, nombre de pays par continent comparé au nombre annoncé, codes inconnus, pays sans contour sur la carte, renvois vers des sources absentes, écarts entre la synthèse du document et le détail pays par pays.
 
@@ -174,7 +176,7 @@ La capacité de chaque banque vient de son profil : une phrase « does not opera
 | Profils et connexion | `setRole`, `showLock`, `lockApp`, `gGet` / `gSet` |
 | Activité, axe du pays, sièges | `actOf`, `bankTFInfo`, `focusOf`, `SITES`, `paintSites` |
 | Sources des données, copies | `whyHTML`, `showWhy`, `bankSummary`, `countrySummary`, `copyRich` |
-| Traductions du contenu | `segKey`, `segHTML`, `allTrKeys`, `importTr` |
+| Traductions du contenu | `TRPACK`, `trNorm`, `autoTranslate`, `fitRefs`, `segKey`, `segHTML`, `allTrKeys`, `importTr` |
 
 **Précautions**
 
@@ -194,5 +196,5 @@ La capacité de chaque banque vient de son profil : une phrase « does not opera
 - **BNP Paribas** n'est pas dans le jeu de données : ajout prévu dans une version suivante, avec des données internes.
 - **Mise à jour du document** : la charte du document prévoit un rafraîchissement en avril et en novembre ; chaque nouvel import crée une version dans l'historique.
 - **Nature de l'activité déduite** : le document ne donne pas de colonne « cash management / trade finance » par pays et par banque ; l'outil la déduit de la capacité de la banque et de la définition des codes, et le dit dans la source de chaque donnée. L'axe du pays est un classement automatique de mots-clés.
-- **Traductions** : rédigées avec l'aide d'un modèle d'IA à partir du document anglais ; l'original reste consultable dans la source de chaque donnée. Un nouveau document demande un paquet de traductions mis à jour pour les textes modifiés.
+- **Traductions** : rédigées avec l'aide d'un modèle d'IA à partir du document anglais ; l'original reste consultable dans la source de chaque donnée. Un nouveau document demande de traduire ses textes nouveaux ou modifiés et de relancer `integrer_traductions.py`. Le chiffrement des traductions intégrées protège contre une lecture sans le document, pas contre quelqu'un qui le possède déjà.
 - **Autorisation du dossier** : après un rechargement, Edge et Chrome peuvent redemander l'accès au dossier partagé ; un bandeau « Se reconnecter » le fait en un clic.

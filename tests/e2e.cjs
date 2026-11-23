@@ -71,6 +71,12 @@ async function shot(page, name) { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: 
   await shot(page, '01-import');
   await page.click('#dSv');
   await page.waitForSelector('text=Historique des imports');
+  {
+    const st0 = await page.textContent('#dTrSt');
+    const m0 = st0.match(/(\d+) textes sur (\d+)/);
+    ok(m0 && m0[1] === m0[2], 'traductions intégrées appliquées à l’import : ' + st0.trim());
+    ok(!require('fs').readFileSync(path.join(DIST, 'Competitor_Analysis.html'), 'utf8').includes('Présente dans 160 pays'), 'aucune traduction en clair dans le fichier');
+  }
   if (TRAD) {
     const [fc2] = await Promise.all([page.waitForEvent('filechooser'), page.click('#dTr')]);
     await fc2.setFiles(TRAD);
@@ -169,7 +175,7 @@ async function shot(page, name) { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: 
   await page.click('#drBd [data-w^="cell|"]');
   await page.waitForSelector('#why:not(.hidden)');
   const w = await page.textContent('#why');
-  ok(w.includes('Complete Sovereign Compilation') && w.includes('NONE-SANC'), 'source d’une case pays × concurrent');
+  ok(w.includes('Base pays × concurrents du document') && w.includes('NONE-SANC'), 'source d’une case pays × concurrent');
   await shot(page, '15-source-case');
   await page.click('#whyX');
   await page.click('#drawer [data-copy^="country|"]');
@@ -190,7 +196,7 @@ async function shot(page, name) { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: 
   console.log('     > ' + clipS.split('\n').join('\n     > '));
   await page.click('.wtext[data-w^="fact|"]');
   await page.waitForSelector('#why:not(.hidden)');
-  ok((await page.textContent('#why')).includes('Comparative Institutional Matrix'), 'source d’une donnée de la matrice');
+  ok((await page.textContent('#why')).includes('Matrice comparative du document'), 'source d’une donnée de la matrice');
   await page.click('#whyX');
 
   await page.click('nav.tabs button[data-v="table"]');

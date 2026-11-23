@@ -29,8 +29,11 @@ const srv = http.createServer((q, r) => { r.writeHead(200, { 'Content-Type': 'te
     const txt = await p.textContent('#dRep');
     if (LISIBLES.includes(f)) {
       ok(txt.includes('193 pays importés') && txt.includes('10 concurrents reconnus') && txt.includes('72 sources lues'), f + ' : 193 pays, 10 concurrents, 72 sources');
+      await p.click('#dSv'); await p.waitForSelector('#dTrSt');
+      const m0 = (await p.textContent('#dTrSt')).match(/(\d+) textes sur (\d+)/);
+      ok(m0 && m0[1] === m0[2], f + ' : traduction automatique (' + (m0 ? m0[1] + '/' + m0[2] : '?') + ')');
       if (TRAD) {
-        await p.click('#dSv'); await p.waitForSelector('#dTr');
+        await p.waitForSelector('#dTr');
         const [fc2] = await Promise.all([p.waitForEvent('filechooser'), p.click('#dTr')]);
         await fc2.setFiles(TRAD);
         await p.waitForSelector('#dTrSt:has-text("Traductions FR / NL")');
